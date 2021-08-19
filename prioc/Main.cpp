@@ -1,3 +1,9 @@
+/*
+* PRIC
+* VINÍCIUS REIS
+* 
+*/
+
 #include <stdlib.h>
 #include <fstream>
 #include <iostream>
@@ -6,12 +12,12 @@
 
 enum class TOKEN
 {
-	IDENTIFIER, // names the programmer chooses (x, color, UP)
-	KEYWORD,    // names already in the programming language (if, while, return)
-	SEPARATOR,  // punctuation characters and paired-delimiters (}, (, ;)
-	OPERATOR,   // symbols that operate on arguments and produce results (+, <, =)
-	LITERAL,    // numeric, logical, textual, reference literals (true, 6.02e23, "music")
-	COMMENT		//  line, block (/* Retrieves user data */)
+	IDENTIFIER,		// names the programmer chooses (x, color, UP)
+	KEYWORD,		// names already in the programming language (if, while, return)
+	SEPARATOR,		// punctuation characters and paired-delimiters (}, (, ;)
+	OPERATOR,		// symbols that operate on arguments and produce results (+, <, =)
+	LITERAL,		// numeric, logical, textual, reference literals (true, 6.02e23, "music")
+	COMMENT			//  line, block (/* Retrieves user data */)
 };
 
 struct element
@@ -22,7 +28,7 @@ struct element
 
 std::vector<element> table;
 
-/*------------------------------------------------------------------------------------------*/
+/*-----------------------------------------------------------------------------------------------*/
 
 void addToTable(std::string frag, TOKEN token)
 {
