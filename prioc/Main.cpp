@@ -28,7 +28,7 @@ struct element
 
 std::vector<element> table;
 
-/*-----------------------------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------------------------------------------------------*/
 
 void addToTable(std::string frag, TOKEN token)
 {
@@ -41,34 +41,37 @@ void addToTable(std::string frag, TOKEN token)
 
 void printTable()
 {
+	std::cout << "\n--------------------TABLE--------------------" << std::endl;
 	std::string token;
 	for (auto& e : table)
 	{
 		switch (e.token)
 		{
-			case TOKEN::IDENTIFIER:
-				token = "Identifier";
-				break;
-			case TOKEN::KEYWORD:
-				token = "Keyword";
-				break;
-			case TOKEN::SEPARATOR:
-				token = "Separator";
-				break;
-			case TOKEN::OPERATOR:
-				token = "Operator";
-				break;
-			case TOKEN::LITERAL:
-				token = "Literal";
-				break;
-			case TOKEN::COMMENT:
-				token = "Comment";
-				break;
+		case TOKEN::IDENTIFIER:
+			token = "Identifier";
+			break;
+		case TOKEN::KEYWORD:
+			token = "Keyword";
+			break;
+		case TOKEN::SEPARATOR:
+			token = "Separator";
+			break;
+		case TOKEN::OPERATOR:
+			token = "Operator";
+			break;
+		case TOKEN::LITERAL:
+			token = "Literal";
+			break;
+		case TOKEN::COMMENT:
+			token = "Comment";
+			break;
 		}
-		
+
 		std::cout << e.frag + " || " + token << std::endl;
 	}
 }
+
+/*----------------------------------------------------------------------------------------------------------------------------*/
 
 void lexical(const std::string& line)
 {
@@ -83,21 +86,23 @@ void lexical(const std::string& line)
 			if ((c == '"' || c == '\'') && open == false)
 			{
 				open = true;
+				frag += c;
 			}
 			else if ((c == '"' || c == '\'') && open == true) // LITERAL
 			{
 				open = false;
+				frag += c;
 				addToTable(frag, TOKEN::LITERAL);
+				frag = "";
 			}
 			else if (c == ';') // LITERAL
 			{
 				if(!frag.empty()) addToTable(frag, TOKEN::LITERAL);
 				frag = "";
+				frag += c;
+				addToTable(frag, TOKEN::SEPARATOR);
+				frag = "";
 			}
-
-			frag = c;
-			addToTable(frag, TOKEN::SEPARATOR);
-			frag = "";
 		}
 		// OPERATOR
 		else if (c == '=' || c == '+')
@@ -109,7 +114,7 @@ void lexical(const std::string& line)
 		// SPACE
 		else if (c == ' ' && open == false)
 		{
-			if (frag == "int" || frag == "String" || frag == "boolean" || frag == "float" || frag == "double") // KEYWORD
+			if (frag == "int" || frag == "String" || frag == "char" || frag == "boolean" || frag == "float" || frag == "double") // KEYWORD
 			{
 				addToTable(frag, TOKEN::KEYWORD);
 			}
@@ -126,7 +131,62 @@ void lexical(const std::string& line)
 			frag += c;
 		}
 	}
+
+	if (!frag.empty()) addToTable(frag, TOKEN::LITERAL);
+	
 }
+
+void syntactic()
+{
+	int aux = 0;
+	for (auto& e : table)
+	{
+		if (aux == 0)
+		{
+			if (e.token == TOKEN::KEYWORD)
+			{
+				aux = 1;
+			}
+		}
+		else if (aux == 1)
+		{
+			if (e.token == TOKEN::IDENTIFIER)
+			{
+				aux = 2;
+			}
+		}
+		else if (aux == 2)
+		{
+			if (e.token == TOKEN::OPERATOR)
+			{
+				aux = 3;
+			}
+		}
+		else if (aux == 3)
+		{
+			if (e.token == TOKEN::LITERAL)
+			{
+				aux = 4;
+			}
+			else if (e.token == TOKEN::SEPARATOR)
+			{
+
+			}
+		}
+		else if (aux == 4)
+		{
+			if (e.frag == ";" && e.token == TOKEN::SEPARATOR)
+			{
+				aux = 10;
+			}
+		}
+	}
+
+	if(aux != 10) std::cout << "Erro Sintatico, Estado:  " + std::to_string(aux) << std::endl;
+}
+
+/*----------------------------------------------------------------------------------------------------------------------------*/
+
 
 void readData(const std::string& path)
 {
@@ -141,12 +201,14 @@ void readData(const std::string& path)
 		while (std::getline(reader, line))
 		{
 			lexical(line);
+			syntactic();
 		}
 	}
 	else std::cout << "Falha ao abrir arquivo " + path << std::endl;
 
 	reader.close();
 }
+
 
 int main()
 {

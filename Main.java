@@ -1,1 +1,1 @@
-double meuDouble = 1273.12;
+double num = 500.02;
