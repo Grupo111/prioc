@@ -1,1 +1,1 @@
-double num = 500.02;
+float meuFloat = 50.2f;

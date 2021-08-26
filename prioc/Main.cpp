@@ -168,10 +168,6 @@ void syntactic()
 			{
 				aux = 4;
 			}
-			else if (e.token == TOKEN::SEPARATOR)
-			{
-
-			}
 		}
 		else if (aux == 4)
 		{
