@@ -1,1 +1,1 @@
-float meuFloat = 50.2f;
+int num = 5;

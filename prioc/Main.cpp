@@ -30,7 +30,7 @@ std::vector<element> table;
 
 /*----------------------------------------------------------------------------------------------------------------------------*/
 
-void addToTable(std::string frag, TOKEN token)
+void addToTable(const std::string& frag, TOKEN token)
 {
 	element e;
 	e.frag = frag;
@@ -41,7 +41,7 @@ void addToTable(std::string frag, TOKEN token)
 
 void printTable()
 {
-	std::cout << "\n--------------------TABLE--------------------" << std::endl;
+	std::cout << "--------------------TABLE--------------------" << std::endl;
 	std::string token;
 	for (auto& e : table)
 	{
@@ -95,11 +95,16 @@ void lexical(const std::string& line)
 				addToTable(frag, TOKEN::LITERAL);
 				frag = "";
 			}
-			else if (c == ';') // LITERAL
+			else if (c == ';') // IDENTIFIER OR LITERAL
 			{
-				if(!frag.empty()) addToTable(frag, TOKEN::LITERAL);
+				if (!frag.empty())
+				{
+					if (!table.empty() && table.back().token == TOKEN::KEYWORD) addToTable(frag, TOKEN::IDENTIFIER);
+					else addToTable(frag, TOKEN::LITERAL);
+				}
+
 				frag = "";
-				frag += c;
+				frag += c;				
 				addToTable(frag, TOKEN::SEPARATOR);
 				frag = "";
 			}
@@ -147,6 +152,7 @@ void syntactic()
 			{
 				aux = 1;
 			}
+			else break;
 		}
 		else if (aux == 1)
 		{
@@ -154,6 +160,7 @@ void syntactic()
 			{
 				aux = 2;
 			}
+			else break;
 		}
 		else if (aux == 2)
 		{
@@ -161,6 +168,11 @@ void syntactic()
 			{
 				aux = 3;
 			}
+			else if (e.token == TOKEN::SEPARATOR && e.frag == ";")
+			{
+				aux = 10;
+			}
+			else break;
 		}
 		else if (aux == 3)
 		{
@@ -168,17 +180,19 @@ void syntactic()
 			{
 				aux = 4;
 			}
+			else break;
 		}
 		else if (aux == 4)
 		{
-			if (e.frag == ";" && e.token == TOKEN::SEPARATOR)
+			if (e.token == TOKEN::SEPARATOR && e.frag == ";")
 			{
 				aux = 10;
 			}
+			else break;
 		}
 	}
 
-	if(aux != 10) std::cout << "Erro Sintatico, Estado:  " + std::to_string(aux) << std::endl;
+	if(aux != 10) std::cout << "\n-->Erro Sintatico, Estado:  " + std::to_string(aux) << std::endl;
 }
 
 /*----------------------------------------------------------------------------------------------------------------------------*/
@@ -197,6 +211,7 @@ void readData(const std::string& path)
 		while (std::getline(reader, line))
 		{
 			lexical(line);
+			printTable();
 			syntactic();
 		}
 	}
@@ -205,11 +220,9 @@ void readData(const std::string& path)
 	reader.close();
 }
 
-
 int main()
 {
 	readData("../Main.java");
-	printTable();
-
+	
 	return 0;
 }
