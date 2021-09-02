@@ -254,12 +254,12 @@ void semantic()
 
 	if (!literal.empty())
 	{
-		if		((keyword == "String") && !isValidString(literal))	std::cout << "\n-->Erro Semantico, String Invalida:  " + literal  << std::endl;
+		if ((keyword == "String") && !isValidString(literal))	    std::cout << "\n-->Erro Semantico, String Invalida:  " + literal << std::endl;
 		else if ((keyword == "boolean") && !isValidBool(literal))   std::cout << "\n-->Erro Semantico, boolean Invalido:  " + literal << std::endl;
-		else if ((keyword == "char") && !isValidChar(literal))      std::cout << "\n-->Erro Semantico, char Invalido:  " + literal    << std::endl;
-		else if ((keyword == "int") && !isValidInt(literal))		std::cout << "\n-->Erro Semantico, int Invalido:  " + literal     << std::endl;
-		else if ((keyword == "double") && !isValidNumber(literal))  std::cout << "\n-->Erro Semantico, double Invalido:  " + literal  << std::endl;
-		else if ((keyword == "float") && !isValidNumber(literal))   std::cout << "\n-->Erro Semantico, float Invalido:  " + literal   << std::endl;
+		else if ((keyword == "char") && !isValidChar(literal))      std::cout << "\n-->Erro Semantico, char Invalido:  " + literal << std::endl;
+		else if ((keyword == "int") && !isValidInt(literal))		std::cout << "\n-->Erro Semantico, int Invalido:  " + literal << std::endl;
+		else if ((keyword == "double") && !isValidNumber(literal))  std::cout << "\n-->Erro Semantico, double Invalido:  " + literal << std::endl;
+		else if ((keyword == "float") && !isValidNumber(literal))   std::cout << "\n-->Erro Semantico, float Invalido:  " + literal << std::endl;
 	}
 }
 
