@@ -1,1 +1,1 @@
-int num = 5;
+float meufloat = 5.0f;
