@@ -7,37 +7,24 @@
 #include <stdlib.h>
 #include <fstream>
 #include <iostream>
-#include <string>
 #include <vector>
-#include <regex>
+#include <string>
 
-enum class TOKEN
-{
-	IDENTIFIER,		// names the programmer chooses (x, color, UP)
-	KEYWORD,		// names already in the programming language (if, while, return)
-	SEPARATOR,		// punctuation characters and paired-delimiters (}, (, ;)
-	OPERATOR,		// symbols that operate on arguments and produce results (+, <, =)
-	LITERAL,		// numeric, logical, textual, reference literals (true, 6.02e23, "music")
-	COMMENT			//  line, block (/* Retrieves user data */)
-};
-
-struct element
-{
-	std::string lexeme;
-	TOKEN token;
-};
-
-std::vector<element> table;
+#include "Util.h"
 
 
 /*----------------------------------------------------------------------------------------------------------------------------*/
 
 
-void addToTable(const std::string& frag, TOKEN token)
+std::vector<element> table;
+
+
+void addToTable(const std::string& frag, TOKEN token, int id = -1)
 {
 	element e;
 	e.lexeme = frag;
 	e.token = token;
+	e.id = id;
 
 	table.push_back(e);
 }
@@ -70,40 +57,11 @@ void printTable()
 			break;
 		}
 
-		std::cout << e.lexeme + " || " + token << std::endl;
+		std::string id;
+		e.id >= 0 ? id = std::to_string(e.id) : id = "";
+		std::cout << e.lexeme << " || " << token << " || " << id << std::endl;
 	}
 }
-
-bool isValidNumber(const std::string& lexeme)
-{
-	std::regex re("[\-\+]?([0-9]*[.])?[0-9]+([f]|.)?");
-	return std::regex_match(lexeme, re);
-}
-
-bool isValidInt(const std::string& lexeme)
-{
-	std::regex re("[\-\+]?([0-9]*)");
-	return std::regex_match(lexeme, re);
-}
-
-bool isValidString(const std::string& lexeme)
-{
-	std::regex re("\"(\\.|[^\"])*\"");
-	return std::regex_match(lexeme, re);
-}
-
-bool isValidChar(const std::string& lexeme)
-{
-	std::regex re("\'(\\.|[^\"]){1}\'");
-	return std::regex_match(lexeme, re);
-}
-
-bool isValidBool(const std::string& lexeme)
-{
-	if ((lexeme == "true") || (lexeme == "false")) return true;
-	else return false;
-}
-
 
 /*----------------------------------------------------------------------------------------------------------------------------*/
 
@@ -111,6 +69,7 @@ void lexical(const std::string& line)
 {
 	std::string frag;
 	bool open = false;
+	int currentID = -1;
 
 	for (const char& c : line)
 	{
@@ -126,15 +85,20 @@ void lexical(const std::string& line)
 			{
 				open = false;
 				frag += c;
-				addToTable(frag, TOKEN::LITERAL);
+				addToTable(frag, TOKEN::LITERAL, currentID);
 				frag = "";
 			}
 			else if (c == ';') // IDENTIFIER OR LITERAL
 			{
 				if (!frag.empty())
 				{
-					if (!table.empty() && table.back().token == TOKEN::KEYWORD) addToTable(frag, TOKEN::IDENTIFIER);
-					else addToTable(frag, TOKEN::LITERAL);
+					if (!table.empty() && table.back().token == TOKEN::KEYWORD)
+					{
+						currentID = getNextValidID(table);
+						addToTable(frag, TOKEN::IDENTIFIER, currentID);
+					}
+					
+					else addToTable(frag, TOKEN::LITERAL, currentID);
 				}
 
 				frag = "";
@@ -159,7 +123,8 @@ void lexical(const std::string& line)
 			}
 			else if(!frag.empty()) // IDENTIFIER
 			{
-				addToTable(frag, TOKEN::IDENTIFIER);
+				currentID = getNextValidID(table);
+				addToTable(frag, TOKEN::IDENTIFIER, currentID);
 			}
 
 			frag = "";
@@ -173,8 +138,14 @@ void lexical(const std::string& line)
 
 	if (!frag.empty())
 	{
-		if(table.back().token == TOKEN::KEYWORD) addToTable(frag, TOKEN::IDENTIFIER);
-		else if (table.back().token == TOKEN::OPERATOR) addToTable(frag, TOKEN::LITERAL);
+		if (table.back().token == TOKEN::KEYWORD)
+		{
+			currentID = getNextValidID(table);
+			addToTable(frag, TOKEN::IDENTIFIER, currentID);
+		}
+		
+		else if (table.back().token == TOKEN::OPERATOR) 
+			addToTable(frag, TOKEN::LITERAL, currentID);
 	}
 
 	for (auto& e : table)
@@ -218,7 +189,11 @@ void syntactic()
 			}
 			else if (e.token == TOKEN::SEPARATOR && e.lexeme == ";")
 			{
-				aux = 10;
+				if (&table.back() != &e)
+				{
+					aux = 0;
+				}
+				else aux = 10;
 			}
 			else break;
 		}
@@ -234,13 +209,18 @@ void syntactic()
 		{
 			if (e.token == TOKEN::SEPARATOR && e.lexeme == ";")
 			{
-				aux = 10;
+				if (&table.back() != &e)
+				{
+					aux = 0;
+				}
+				else aux = 10;
 			}
 			else break;
 		}
 	}
 
-	if(aux != 10) std::cout << "\n-->Erro Sintatico, Estado:  " + std::to_string(aux) << std::endl;
+	if(aux != 10) 
+		std::cout << "\n-->Erro Sintatico, Estado:  " << aux << std::endl;
 }
 
 void semantic()
@@ -248,20 +228,35 @@ void semantic()
 	std::string keyword, literal;
 	for (auto& e : table)
 	{
-		if (e.token == TOKEN::KEYWORD) keyword = e.lexeme;
-		else if (e.token == TOKEN::LITERAL) literal = e.lexeme;
+		if (e.token == TOKEN::KEYWORD) 
+			keyword = e.lexeme;
+		
+		else if (e.token == TOKEN::LITERAL) 
+			literal = e.lexeme;
 	}
 
 	if (!literal.empty())
 	{
-		if ((keyword == "String") && !isValidString(literal))	    std::cout << "\n-->Erro Semantico, String Invalida:  " + literal << std::endl;
-		else if ((keyword == "boolean") && !isValidBool(literal))   std::cout << "\n-->Erro Semantico, boolean Invalido:  " + literal << std::endl;
-		else if ((keyword == "char") && !isValidChar(literal))      std::cout << "\n-->Erro Semantico, char Invalido:  " + literal << std::endl;
-		else if ((keyword == "int") && !isValidInt(literal))	    std::cout << "\n-->Erro Semantico, int Invalido:  " + literal << std::endl;
-		else if ((keyword == "double") && !isValidNumber(literal))  std::cout << "\n-->Erro Semantico, double Invalido:  " + literal << std::endl;
-		else if ((keyword == "float") && !isValidNumber(literal))   std::cout << "\n-->Erro Semantico, float Invalido:  " + literal << std::endl;
+		if ((keyword == "String") && !isValidString(literal))	    
+			std::cout << "\n-->Erro Semantico, String Invalida:  " << literal << std::endl;
+		
+		else if ((keyword == "boolean") && !isValidBool(literal))   
+			std::cout << "\n-->Erro Semantico, boolean Invalido:  " << literal << std::endl;
+		
+		else if ((keyword == "char") && !isValidChar(literal))      
+			std::cout << "\n-->Erro Semantico, char Invalido:  " << literal << std::endl;
+		
+		else if ((keyword == "int") && !isValidInt(literal))	    
+			std::cout << "\n-->Erro Semantico, int Invalido:  " << literal << std::endl;
+		
+		else if ((keyword == "double") && !isValidNumber(literal))  
+			std::cout << "\n-->Erro Semantico, double Invalido:  " << literal << std::endl;
+		
+		else if ((keyword == "float") && !isValidNumber(literal))   
+			std::cout << "\n-->Erro Semantico, float Invalido:  " << literal << std::endl;
 	}
 }
+
 
 
 /*----------------------------------------------------------------------------------------------------------------------------*/
@@ -280,10 +275,13 @@ void readData(const std::string& path)
 		while (std::getline(reader, line))
 		{
 			lexical(line);
-			syntactic();
-			semantic();
-			printTable();
+
 		}
+
+		syntactic();
+		semantic();
+
+		printTable();
 	}
 	else std::cout << "Falha ao abrir arquivo " + path << std::endl;
 

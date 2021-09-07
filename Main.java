@@ -1,1 +1,2 @@
-float meufloat = 5.0f;
+int x = 5;
+String meuNome = "skasd";
