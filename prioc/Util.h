@@ -2,6 +2,14 @@
 #include <string>
 #include <regex>
 
+//MACRO PRINTS
+#define LOG_WRONGPATH_ERROR(path) std::cout << "Falha ao abrir arquivo " << path << std::endl
+#define LOG_LEXICAL_ERROR(lexeme) std::cout << "\n-->Erro Lexico, Lexema: " << lexeme << std::endl
+#define LOG_SYNTACTIC_ERROR(state) std::cout << "\n-->Erro Sintatico, Estado: " << state << std::endl
+#define LOG_SEMANTIC_ERROR(keyword, value) std::cout << "\n-->Erro Semantico " << keyword << " Invalido:  " << value << std::endl
+#define LOG_SEMANTICVAR_ERROR(value) std::cout << "\n-->Erro Semantico, Identificador duplicado:  " << value << std::endl
+#define LOG_WARN(x) std::cout << x << std::endl
+
 enum class TOKEN
 {
 	IDENTIFIER,		// names the programmer chooses (x, color, UP)
@@ -23,9 +31,10 @@ struct var
 {
 	std::string keyword;
 	std::string identifier;
-	std::string literal;
+	std::string value;
 	int id;
 };
+
 
 bool isValidNumber(const std::string& lexeme)
 {
@@ -55,6 +64,16 @@ bool isValidBool(const std::string& lexeme)
 {
 	if ((lexeme == "true") || (lexeme == "false")) return true;
 	else return false;
+}
+
+bool isValidLiteral(const std::string& lexeme)
+{
+	if (!isValidNumber(lexeme) && !isValidString(lexeme) && !isValidChar(lexeme) && !isValidBool(lexeme))
+	{
+		return false;
+	}
+	else
+		return true;
 }
 
 int getNextValidID(const std::vector<element>& table)

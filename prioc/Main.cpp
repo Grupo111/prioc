@@ -33,7 +33,7 @@ void printTable()
 {
 	std::cout << "\n\n--------------------TABLE--------------------" << std::endl;
 	std::string token;
-	for (auto& e : table)
+	for (const auto& e : table)
 	{
 		switch (e.token)
 		{
@@ -94,7 +94,6 @@ void lexical(const std::string& line)
 				{
 					if (!table.empty() && table.back().token == TOKEN::KEYWORD)
 					{
-						currentID = getNextValidID(table);
 						addToTable(frag, TOKEN::IDENTIFIER, currentID);
 					}
 					
@@ -119,11 +118,11 @@ void lexical(const std::string& line)
 		{
 			if (frag == "int" || frag == "String" || frag == "char" || frag == "boolean" || frag == "float" || frag == "double") // KEYWORD
 			{
-				addToTable(frag, TOKEN::KEYWORD);
+				currentID = getNextValidID(table);
+				addToTable(frag, TOKEN::KEYWORD, currentID);
 			}
 			else if(!frag.empty()) // IDENTIFIER
 			{
-				currentID = getNextValidID(table);
 				addToTable(frag, TOKEN::IDENTIFIER, currentID);
 			}
 
@@ -140,7 +139,6 @@ void lexical(const std::string& line)
 	{
 		if (table.back().token == TOKEN::KEYWORD)
 		{
-			currentID = getNextValidID(table);
 			addToTable(frag, TOKEN::IDENTIFIER, currentID);
 		}
 		
@@ -148,115 +146,166 @@ void lexical(const std::string& line)
 			addToTable(frag, TOKEN::LITERAL, currentID);
 	}
 
+
+	/*
+	*	CHECK IF LITERALS ARE VALID BASED ON REGEX FUNCTIONS
+	*/
+
 	for (auto& e : table)
 	{
-		if (e.token == TOKEN::LITERAL)
-		{
-			if (!isValidNumber(e.lexeme) && !isValidString(e.lexeme) && !isValidChar(e.lexeme) && !isValidBool(e.lexeme))
-			{
-				std::cout << "\n-->Erro Lexico, Lexema:  " + e.lexeme << std::endl;
-			}
-		}
+		if (e.token == TOKEN::LITERAL && !isValidLiteral(e.lexeme))
+			LOG_LEXICAL_ERROR(e.lexeme);
+		
 	}
 }
 
 void syntactic()
 {
-	int aux = 0;
-	for (auto& e : table)
+	int state = 0;
+
+	for (const auto& e : table)
 	{
-		if (aux == 0)
+		if (state == 0)
 		{
 			if (e.token == TOKEN::KEYWORD)
 			{
-				aux = 1;
+				state = 1;
 			}
 			else break;
 		}
-		else if (aux == 1)
+		else if (state == 1)
 		{
 			if (e.token == TOKEN::IDENTIFIER)
 			{
-				aux = 2;
+				state = 2;
 			}
 			else break;
 		}
-		else if (aux == 2)
+		else if (state == 2)
 		{
 			if (e.token == TOKEN::OPERATOR)
 			{
-				aux = 3;
+				state = 3;
 			}
 			else if (e.token == TOKEN::SEPARATOR && e.lexeme == ";")
 			{
 				if (&table.back() != &e)
 				{
-					aux = 0;
+					state = 0;
 				}
-				else aux = 10;
+				else state = 10;
 			}
 			else break;
 		}
-		else if (aux == 3)
+		else if (state == 3)
 		{
 			if (e.token == TOKEN::LITERAL)
 			{
-				aux = 4;
+				state = 4;
 			}
 			else break;
 		}
-		else if (aux == 4)
+		else if (state == 4)
 		{
 			if (e.token == TOKEN::SEPARATOR && e.lexeme == ";")
 			{
 				if (&table.back() != &e)
 				{
-					aux = 0;
+					state = 0;
 				}
-				else aux = 10;
+				else state = 10;
 			}
 			else break;
 		}
 	}
 
-	if(aux != 10) 
-		std::cout << "\n-->Erro Sintatico, Estado:  " << aux << std::endl;
+	/*
+	*	 CHECKS IF STATE IS DIFFERENT FROM 10 (ok)
+	*/
+
+	if (state != 10)
+		LOG_SYNTACTIC_ERROR(state);
 }
 
 void semantic()
 {
-	std::string keyword, literal;
+	/*
+	*	 BUILD VAR TABLE
+	*/
+	
+	std::vector<var> varTable;
 	for (auto& e : table)
 	{
-		if (e.token == TOKEN::KEYWORD) 
-			keyword = e.lexeme;
-		
-		else if (e.token == TOKEN::LITERAL) 
-			literal = e.lexeme;
+		if (e.id >= 0 && e.token == TOKEN::KEYWORD)
+		{
+			var v;
+			v.keyword = e.lexeme;
+			v.id = e.id;
+
+			varTable.push_back(v);
+		}
+
+		else if (e.id >= 0 && e.token == TOKEN::IDENTIFIER)
+		{
+			for (auto& v : varTable)
+			{
+				if (v.id == e.id)
+				{
+					v.identifier = e.lexeme;
+					break;
+				}
+			}
+		}
+
+		else if (e.id >= 0 && e.token == TOKEN::LITERAL)
+		{
+			for (auto& v : varTable)
+			{
+				if (v.id == e.id)
+				{
+					v.value = e.lexeme;
+					break;
+				}
+			}
+		}
 	}
 
-	if (!literal.empty())
+	/*
+	*	CHECKS IF VALUE ASSIGNED TO VAR IS VALID
+	* 
+	*	CHECKS IF IDENTIFIER IS NOT DUPLICATED
+	*/
+
+	for (int i = 0; i < varTable.size(); i++)
 	{
-		if ((keyword == "String") && !isValidString(literal))	    
-			std::cout << "\n-->Erro Semantico, String Invalida:  " << literal << std::endl;
-		
-		else if ((keyword == "boolean") && !isValidBool(literal))   
-			std::cout << "\n-->Erro Semantico, boolean Invalido:  " << literal << std::endl;
-		
-		else if ((keyword == "char") && !isValidChar(literal))      
-			std::cout << "\n-->Erro Semantico, char Invalido:  " << literal << std::endl;
-		
-		else if ((keyword == "int") && !isValidInt(literal))	    
-			std::cout << "\n-->Erro Semantico, int Invalido:  " << literal << std::endl;
-		
-		else if ((keyword == "double") && !isValidNumber(literal))  
-			std::cout << "\n-->Erro Semantico, double Invalido:  " << literal << std::endl;
-		
-		else if ((keyword == "float") && !isValidNumber(literal))   
-			std::cout << "\n-->Erro Semantico, float Invalido:  " << literal << std::endl;
+		if (!varTable[i].value.empty())
+		{
+			if ((varTable[i].keyword == "String") && !isValidString(varTable[i].value))
+				LOG_SEMANTIC_ERROR("String", varTable[i].value);
+
+			else if ((varTable[i].keyword == "boolean") && !isValidBool(varTable[i].value))
+				LOG_SEMANTIC_ERROR("boolean", varTable[i].value);
+
+			else if ((varTable[i].keyword == "char") && !isValidChar(varTable[i].value))
+				LOG_SEMANTIC_ERROR("char", varTable[i].value);
+
+			else if ((varTable[i].keyword == "int") && !isValidInt(varTable[i].value))
+				LOG_SEMANTIC_ERROR("int", varTable[i].value);
+
+			else if ((varTable[i].keyword == "double") && !isValidNumber(varTable[i].value))
+				LOG_SEMANTIC_ERROR("double", varTable[i].value);
+
+			else if ((varTable[i].keyword == "float") && !isValidNumber(varTable[i].value))
+				LOG_SEMANTIC_ERROR("float", varTable[i].value);
+		}
+
+		for (int k = i + 1; k < varTable.size(); k++)
+		{
+			if (varTable[i].identifier == varTable[k].identifier)
+				LOG_SEMANTICVAR_ERROR(varTable[i].identifier);
+		}
 	}
 }
-
 
 
 /*----------------------------------------------------------------------------------------------------------------------------*/
@@ -283,7 +332,9 @@ void readData(const std::string& path)
 
 		printTable();
 	}
-	else std::cout << "Falha ao abrir arquivo " + path << std::endl;
+
+	else
+		LOG_WRONGPATH_ERROR(path);
 
 	reader.close();
 }
@@ -291,6 +342,6 @@ void readData(const std::string& path)
 int main()
 {
 	readData("../Main.java");
-	
+
 	return 0;
 }

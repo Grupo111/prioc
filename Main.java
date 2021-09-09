@@ -1,2 +1,1 @@
-int x = 5;
-String meuNome = "skasd";
+String minhaString = "asd";
