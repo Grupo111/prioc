@@ -1,14 +1,27 @@
 #pragma once
+#include <stdlib.h>
+#include <clocale>
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <string>
 #include <string>
 #include <regex>
 
 //MACRO PRINTS
+#define LOG(x) std::cout << x << std::endl
 #define LOG_WRONGPATH_ERROR(path) std::cout << "Falha ao abrir arquivo " << path << std::endl
-#define LOG_LEXICAL_ERROR(lexeme) std::cout << "\n-->Erro Lexico, Lexema: " << lexeme << std::endl
-#define LOG_SYNTACTIC_ERROR(state) std::cout << "\n-->Erro Sintatico, Estado: " << state << std::endl
-#define LOG_SEMANTIC_ERROR(keyword, value) std::cout << "\n-->Erro Semantico " << keyword << " Invalido:  " << value << std::endl
-#define LOG_SEMANTICVAR_ERROR(value) std::cout << "\n-->Erro Semantico, Identificador duplicado:  " << value << std::endl
-#define LOG_WARN(x) std::cout << x << std::endl
+
+#define LOG_INVALID_INDENTIFIER(identifier) std::cout << "--> Indenticador invalido: " << identifier << std::endl
+#define LOG_INVALID_LITERAL(value) std::cout << "--> Valor atribuido invalido: " << value << std::endl
+
+#define LOG_MISSING_SEMICOLON(lexeme) std::cout << "--> Erro Sintatico, ';' faltando apos: " << lexeme << std::endl
+#define LOG_SYNTACTIC_ERROR(state, lexeme) std::cout << "--> Erro Sintatico, Estado " << state << ": palavra nao identificada: " << lexeme << std::endl
+
+#define LOG_SEMANTIC_ERROR(keyword, value) std::cout << "--> Erro Semantico, " << keyword << " Invalido:  " << value << std::endl
+#define LOG_SEMANTICVAR_ERROR(value) std::cout << "--> Erro Semantico, Identificador duplicado: " << value << std::endl
+
+/*----------------------------------------------------------------------------------------------------------------------------*/
 
 enum class TOKEN
 {
@@ -17,10 +30,10 @@ enum class TOKEN
 	SEPARATOR,		// punctuation characters and paired-delimiters (}, (, ;)
 	OPERATOR,		// symbols that operate on arguments and produce results (+, <, =)
 	LITERAL,		// numeric, logical, textual, reference literals (true, 6.02e23, "music")
-	COMMENT,		//  line, block (/* Retrieves user data */)
+	COMMENT,		// line, block (/* Retrieves user data */)
 };
 
-struct element
+struct Element
 {
 	std::string lexeme;
 	TOKEN token;
@@ -76,7 +89,13 @@ bool isValidLiteral(const std::string& lexeme)
 		return true;
 }
 
-int getNextValidID(const std::vector<element>& table)
+bool isValidIdentifier(const std::string& lexeme)
+{
+	std::regex re("^([a-zA-Z_$][a-zA-Z\\d_$]*)$");
+	return std::regex_match(lexeme, re);
+}
+
+int getNextValidID(const std::vector<Element>& table)
 {
 	int validID = -1;
 	for (auto& e : table)
@@ -87,4 +106,16 @@ int getNextValidID(const std::vector<element>& table)
 
 	validID++;
 	return validID;
+}
+
+int getID(const std::vector<Element>& table, const std::string& frag)
+{
+	int id = -1;
+	for (auto& e : table)
+	{
+		if (e.token == TOKEN::IDENTIFIER && e.lexeme == frag)
+			id = e.id;
+	}
+
+	return id;
 }
