@@ -1,3 +1,3 @@
-int x = 10;
-boolean isValid = true;
-String name = "Marcos Alonso";
+String meuNome = "Joao";
+boolean meuBool = false;
+Integer meuInt = 5;

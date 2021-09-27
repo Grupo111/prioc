@@ -121,7 +121,7 @@ int lexical(const std::string& line)
 			}
 		}
 		// OPERATOR
-		else if (c == '=' || c == '+')
+		else if (c == '=' || c == '+' || c == '-' || c == '*' || c == '/')
 		{
 			if (!frag.empty())
 			{
@@ -144,7 +144,11 @@ int lexical(const std::string& line)
 		// SPACE
 		else if (c == ' ' && !open)
 		{
-			if (frag == "int" || frag == "String" || frag == "char" || frag == "boolean" || frag == "float" || frag == "double") // KEYWORD
+			if (frag == "int" ||  frag == "Integer" ||
+				frag == "String" || frag == "char" || 
+				frag == "boolean" || frag == "Boolean" || 
+				frag == "float" || frag == "Float" ||
+				frag == "double" || frag == "Double") // KEYWORD
 			{
 				currentID = getNextValidID(table);
 				addToTable(frag, TOKEN::KEYWORD, currentID);
@@ -378,7 +382,7 @@ int semantic()
 				LOG_SEMANTIC_ERROR("String", varTable[i].value);
 				errors++;
 			}
-			else if ((varTable[i].keyword == "boolean") && !isValidBool(varTable[i].value))
+			else if (((varTable[i].keyword == "boolean") || (varTable[i].keyword == "Boolean")) && !isValidBool(varTable[i].value))
 			{
 				LOG_SEMANTIC_ERROR("boolean", varTable[i].value);
 				errors++;
@@ -388,17 +392,17 @@ int semantic()
 				LOG_SEMANTIC_ERROR("char", varTable[i].value);
 				errors++;
 			}
-			else if ((varTable[i].keyword == "int") && !isValidInt(varTable[i].value))
+			else if (((varTable[i].keyword == "int") || (varTable[i].keyword == "Integer")) && !isValidInt(varTable[i].value))
 			{
 				LOG_SEMANTIC_ERROR("int", varTable[i].value);
 				errors++;
 			}
-			else if ((varTable[i].keyword == "double") && !isValidNumber(varTable[i].value))
+			else if (((varTable[i].keyword == "double") || (varTable[i].keyword == "Double")) && !isValidNumber(varTable[i].value))
 			{
 				LOG_SEMANTIC_ERROR("double", varTable[i].value);
 				errors++;
 			}
-			else if ((varTable[i].keyword == "float") && !isValidNumber(varTable[i].value))
+			else if (((varTable[i].keyword == "float") || (varTable[i].keyword == "Float")) && !isValidNumber(varTable[i].value))
 			{
 				LOG_SEMANTIC_ERROR("float", varTable[i].value);
 				errors++;
@@ -437,17 +441,25 @@ void generateCode()
 
 		if (e.token == TOKEN::KEYWORD)
 		{
-			// C++ STRING
-			if (e.lexeme == "String")
+			// NULL KEYWORD FOR SECOND DECLARATION
+			if (multipleDeclaration)
+				multipleDeclaration = false;
+
+			// C++ TYPES
+			else if (e.lexeme == "String")
 				outFile << "std::string";
 
-			// C++ BOOLEAN
-			else if (e.lexeme == "boolean")
+			else if (e.lexeme == "Integer")
+				outFile << "int";
+
+			else if (e.lexeme == "boolean" || e.lexeme == "Boolean")
 				outFile << "bool";
 
-			// NULL KEYWORD FOR SECOND DECLARATION
-			else if (multipleDeclaration)
-				multipleDeclaration = false;
+			else if (e.lexeme == "Double")
+				outFile << "double";
+
+			else if (e.lexeme == "Float")
+				outFile << "float";
 
 			else
 				outFile << e.lexeme;

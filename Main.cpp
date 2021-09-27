@@ -1,3 +1,3 @@
-int x = 10;
-bool isValid = true;
-std::string name = "Marcos Alonso";
+std::string meuNome = "Joao";
+bool meuBool = false;
+int meuInt = 5;
