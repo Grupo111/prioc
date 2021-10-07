@@ -59,30 +59,34 @@ void printTable()
 
 /*----------------------------------------------------------------------------------------------------------------------------*/
 
-int lexical(const std::string& line)
+int lexical(const std::string& sourceCode)
 {
 	std::string frag;
 	std::string lastKeyword;
 	int currentID = -1;
-	bool open = false;
+	bool openQuotes = false;
+	bool openParameter = false;
 
 	int errors = 0;
 
-	for (const char& c : line)
+	for (const char& c : sourceCode)
 	{
 		// SEPARATOR
 		if (c == '(' || c == ')' || c == ';' || c == '"' || c == '\'' || c == ',')
 		{
-			if ((c == '"' || c == '\'') && !open)
+			if ((c == '"' || c == '\'') && !openQuotes)
 			{
-				open = true;
+				openQuotes = true;
 				frag += c;
 			}
-			else if ((c == '"' || c == '\'') && open) // LITERAL
+			else if ((c == '"' || c == '\'') && openQuotes) // LITERAL
 			{
-				open = false;
+				openQuotes = false;
 				frag += c;
-				addToTable(frag, TOKEN::LITERAL, currentID);
+				if (table.back().token == TOKEN::OPERATOR)
+					addToTable(frag, TOKEN::LITERAL, currentID);
+				else
+					addToTable(frag, TOKEN::LITERAL);
 				frag = "";
 			}
 			else if (c == ';') // IDENTIFIER OR LITERAL
@@ -91,13 +95,13 @@ int lexical(const std::string& line)
 				{
 					if (!table.empty() && table.back().token == TOKEN::KEYWORD)
 						addToTable(frag, TOKEN::IDENTIFIER, currentID);
-					
-					else 
+
+					else
 						addToTable(frag, TOKEN::LITERAL, currentID);
 				}
 
 				frag = "";
-				frag += c;				
+				frag += c;
 				addToTable(frag, TOKEN::SEPARATOR);
 				frag = "";
 			}
@@ -118,6 +122,39 @@ int lexical(const std::string& line)
 
 				currentID = getNextValidID(table);
 				addToTable(lastKeyword, TOKEN::KEYWORD, currentID);
+			}
+			else if (c == '(')
+			{
+				openParameter = true;
+
+				// KEYWORD
+				if (frag == "System.out.println" || frag == "System.out.print")
+				{
+					addToTable(frag, TOKEN::KEYWORD);
+					frag = "";
+					frag += c;
+					
+					addToTable(frag, TOKEN::SEPARATOR);
+					frag = "";
+				}
+				else
+				{
+					frag += c;
+					addToTable(frag, TOKEN::SEPARATOR);
+					frag = "";
+				}
+			}
+			else if (c == ')')
+			{
+				openParameter = false;
+
+				if (!frag.empty())
+					addToTable(frag, TOKEN::LITERAL);
+
+				frag = "";
+				frag += c;
+				addToTable(frag, TOKEN::SEPARATOR);
+				frag = "";
 			}
 		}
 		// OPERATOR
@@ -142,7 +179,7 @@ int lexical(const std::string& line)
 			frag = "";
 		}
 		// SPACE
-		else if (c == ' ' && !open)
+		else if (c == ' ' && !openQuotes && !openParameter)
 		{
 			if (frag == "int" ||  frag == "Integer" ||
 				frag == "String" || frag == "char" || 
@@ -153,6 +190,10 @@ int lexical(const std::string& line)
 				currentID = getNextValidID(table);
 				addToTable(frag, TOKEN::KEYWORD, currentID);
 				lastKeyword = frag;
+			}
+			else if (frag == "System.out.println" || frag == "System.out.print")
+			{
+				addToTable(frag, TOKEN::KEYWORD);
 			}
 			else if(!frag.empty()) // IDENTIFIER
 			{
@@ -176,7 +217,10 @@ int lexical(const std::string& line)
 		//
 		else
 		{
-			frag += c;
+			if(openQuotes)
+				frag += c;
+			else if(c != ' ')
+				frag += c;
 		}
 	}
 
@@ -192,14 +236,18 @@ int lexical(const std::string& line)
 
 	/*
 	*	CHECK IF IDENTIFIERS AND LITERALS ARE VALID BASED ON REGEX FUNCTIONS
+	*	CHECK IF LITERAL IS ANOTHER VALID VAR
 	*/
 
 	for (auto& e : table)
 	{
 		if (e.token == TOKEN::LITERAL && !isValidLiteral(e.lexeme))
 		{
-			LOG_INVALID_LITERAL(e.lexeme);
-			errors++;
+			if (!isExistingLiteral(table, e.lexeme))
+			{
+				LOG_INVALID_LITERAL(e.lexeme);
+				errors++;
+			}
 		}
 		else if (e.token == TOKEN::IDENTIFIER && !isValidIdentifier(e.lexeme))
 		{
@@ -215,6 +263,7 @@ int syntactic()
 {
 	int state = 0;
 	int errors = 0;
+	bool open = false;
 	std::string lastLexeme;
 
 	for (const auto& e : table)
@@ -250,6 +299,11 @@ int syntactic()
 						break;
 					}
 				}
+			}
+			else if (e.token == TOKEN::SEPARATOR && e.lexeme == "(")
+			{
+				open = true;
+				state = 3;
 			}
 			else break;
 		}
@@ -290,17 +344,25 @@ int syntactic()
 		}
 		else if (state == 4)
 		{
-			if (e.token == TOKEN::SEPARATOR && e.lexeme == ";")
+			if (e.token == TOKEN::SEPARATOR)
 			{
-				if (&table.back() != &e)
+				if (e.lexeme == ";" && !open)
+				{
+					if (&table.back() != &e)
+					{
+						state = 0;
+					}
+					else state = 10;
+				}
+				else if (e.lexeme == "," && !open)
 				{
 					state = 0;
 				}
-				else state = 10;
-			}
-			else if (e.token == TOKEN::SEPARATOR && e.lexeme == ",")
-			{
-				state = 0;
+				else if (e.lexeme == ")")
+				{
+					open = false;
+					state = 4;
+				}
 			}
 			else break;
 		}
@@ -314,8 +376,7 @@ int syntactic()
 
 	if (state != 10)
 	{
-		if (state == 4 || state == 2) LOG_MISSING_SEMICOLON(lastLexeme);
-		else LOG_SYNTACTIC_ERROR(state, lastLexeme);
+		LOG_SYNTACTIC_ERROR(state, lastLexeme);
 		errors++;
 	}
 
@@ -428,6 +489,8 @@ void generateCode()
 
 	bool newLine = true;
 	bool multipleDeclaration = false;
+	bool outParameter = false;
+	bool outEndLine = false;
 
 	for (auto& e : table)
 	{
@@ -435,11 +498,33 @@ void generateCode()
 		if (!newLine && e.token != TOKEN::SEPARATOR)	
 			outFile << " ";
 
-		// MULTIPLE DECLARATION (, ... = ...)
-		if (e.token == TOKEN::SEPARATOR && e.lexeme == ",")
-			multipleDeclaration = true;
+		if (e.token == TOKEN::SEPARATOR)
+		{
+			// MULTIPLE DECLARATION (, ... = ...)
+			if (e.lexeme == ",")
+			{
+				multipleDeclaration = true;
+				outFile << ",";
+			}
+				
+			else if (e.lexeme == "(" && outParameter)
+				outFile << " <<";
 
-		if (e.token == TOKEN::KEYWORD)
+			else if (e.lexeme == ")" && outParameter)
+			{
+				if (outEndLine)
+				{
+					outEndLine = false;
+					outFile << " << std::endl";
+				}
+				
+				outParameter = false;
+			}
+
+			else 
+				outFile << e.lexeme;
+		}
+		else if (e.token == TOKEN::KEYWORD)
 		{
 			// NULL KEYWORD FOR SECOND DECLARATION
 			if (multipleDeclaration)
@@ -460,6 +545,20 @@ void generateCode()
 
 			else if (e.lexeme == "Float")
 				outFile << "float";
+
+			else if (e.lexeme == "System.out.println")
+			{
+				outFile << "std::cout";
+				outParameter = true;
+				outEndLine = true;
+			} 
+
+			else if (e.lexeme == "System.out.print")
+			{
+				outFile << "std::cout";
+				outParameter = true;
+			}
+
 
 			else
 				outFile << e.lexeme;
@@ -482,7 +581,7 @@ void generateCode()
 
 
 /*----------------------------------------------------------------------------------------------------------------------------*/
-
+ 
 
 void compiler(const std::string sourceCode)
 {
@@ -500,7 +599,7 @@ void compiler(const std::string sourceCode)
 	else
 		LOG("\n\nFalha na compilação -- ERROS: " << errors);
 
-	//printTable();
+	printTable();
 }
 
 void readData(const std::string& path)

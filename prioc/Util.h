@@ -10,13 +10,9 @@
 //MACRO PRINTS
 #define LOG(x) std::cout << x << std::endl
 #define LOG_WRONGPATH_ERROR(path) std::cout << "Falha ao abrir arquivo " << path << std::endl
-
 #define LOG_INVALID_INDENTIFIER(identifier) std::cout << "--> Indenticador invalido: " << identifier << std::endl
 #define LOG_INVALID_LITERAL(value) std::cout << "--> Valor atribuido invalido: " << value << std::endl
-
-#define LOG_MISSING_SEMICOLON(lexeme) std::cout << "--> Erro Sintatico, ';' faltando apos: " << lexeme << std::endl
 #define LOG_SYNTACTIC_ERROR(state, lexeme) std::cout << "--> Erro Sintatico, Estado " << state << ": palavra nao identificada: " << lexeme << std::endl
-
 #define LOG_SEMANTIC_ERROR(keyword, value) std::cout << "--> Erro Semantico, " << keyword << " Invalido:  " << value << std::endl
 #define LOG_SEMANTICVAR_ERROR(value) std::cout << "--> Erro Semantico, Identificador duplicado: " << value << std::endl
 
@@ -92,6 +88,17 @@ bool isValidIdentifier(const std::string& lexeme)
 {
 	std::regex re("^([a-zA-Z_$][a-zA-Z\\d_$]*)$");
 	return std::regex_match(lexeme, re);
+}
+
+bool isExistingLiteral(const std::vector<Element>& table, const std::string& lexeme)
+{
+	for (auto& e : table)
+	{
+		if (e.token == TOKEN::IDENTIFIER && e.lexeme == lexeme)
+			return true;
+	}
+
+	return false;
 }
 
 int getNextValidID(const std::vector<Element>& table)
