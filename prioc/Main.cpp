@@ -83,13 +83,13 @@ int lexical(const std::string& sourceCode)
 			{
 				openQuotes = false;
 				frag += c;
-				if (table.back().token == TOKEN::OPERATOR)
+				if (table.back().lexeme == "=")
 					addToTable(frag, TOKEN::LITERAL, currentID);
 				else
 					addToTable(frag, TOKEN::LITERAL);
 				frag = "";
 			}
-			else if (c == ';') // IDENTIFIER OR LITERAL
+			else if (c == ';' && !openQuotes) // IDENTIFIER OR LITERAL
 			{
 				if (!frag.empty())
 				{
@@ -105,7 +105,7 @@ int lexical(const std::string& sourceCode)
 				addToTable(frag, TOKEN::SEPARATOR);
 				frag = "";
 			}
-			else if (c == ',')
+			else if (c == ',' && !openQuotes)
 			{
 				if (!frag.empty())
 				{
@@ -123,7 +123,7 @@ int lexical(const std::string& sourceCode)
 				currentID = getNextValidID(table);
 				addToTable(lastKeyword, TOKEN::KEYWORD, currentID);
 			}
-			else if (c == '(')
+			else if (c == '(' && !openQuotes)
 			{
 				openParameter = true;
 
@@ -144,13 +144,21 @@ int lexical(const std::string& sourceCode)
 					frag = "";
 				}
 			}
-			else if (c == ')')
+			else if (c == ')' && !openQuotes)
 			{
 				openParameter = false;
 
 				if (!frag.empty())
-					addToTable(frag, TOKEN::LITERAL);
+				{
+					int id = getID(table, frag);
+					
+					if (id >= 0)
+						addToTable(frag, TOKEN::IDENTIFIER, id);
 
+					else
+						addToTable(frag, TOKEN::LITERAL);
+				}
+					
 				frag = "";
 				frag += c;
 				addToTable(frag, TOKEN::SEPARATOR);
@@ -204,7 +212,7 @@ int lexical(const std::string& sourceCode)
 					addToTable(frag, TOKEN::IDENTIFIER, id);
 					currentID = id;
 				}
-				else if (!table.empty() && table.back().token == TOKEN::OPERATOR)
+				else if (!table.empty() && table.back().lexeme == "=")
 				{
 					addToTable(frag, TOKEN::LITERAL, currentID);
 				}
@@ -229,25 +237,21 @@ int lexical(const std::string& sourceCode)
 		if (!table.empty() && table.back().token == TOKEN::KEYWORD)
 			addToTable(frag, TOKEN::IDENTIFIER, currentID);
 		
-		else if (!table.empty() && table.back().token == TOKEN::OPERATOR)
+		else if (!table.empty() && table.back().lexeme == "=")
 			addToTable(frag, TOKEN::LITERAL, currentID);
 	}
 
 
 	/*
 	*	CHECK IF IDENTIFIERS AND LITERALS ARE VALID BASED ON REGEX FUNCTIONS
-	*	CHECK IF LITERAL IS ANOTHER VALID VAR
 	*/
 
 	for (auto& e : table)
 	{
 		if (e.token == TOKEN::LITERAL && !isValidLiteral(e.lexeme))
 		{
-			if (!isExistingLiteral(table, e.lexeme))
-			{
-				LOG_INVALID_LITERAL(e.lexeme);
-				errors++;
-			}
+			LOG_INVALID_LITERAL(e.lexeme);
+			errors++;
 		}
 		else if (e.token == TOKEN::IDENTIFIER && !isValidIdentifier(e.lexeme))
 		{
@@ -336,6 +340,10 @@ int syntactic()
 			{
 				state = 4;
 			}
+			else if (e.token == TOKEN::IDENTIFIER)
+			{
+				state = 4;
+			}
 			else if (e.token == TOKEN::SEPARATOR && e.lexeme == ",")
 			{
 				state = 0;
@@ -363,6 +371,10 @@ int syntactic()
 					open = false;
 					state = 4;
 				}
+			}
+			else if (e.token == TOKEN::OPERATOR && e.lexeme == "+")
+			{
+				state = 3;
 			}
 			else break;
 		}
@@ -392,9 +404,16 @@ int semantic()
 	*/
 	
 	std::vector<var> varTable;
+	bool openParameter = false;
 	for (auto& e : table)
 	{
-		if (e.id >= 0 && e.token == TOKEN::KEYWORD)
+		if (e.token == TOKEN::SEPARATOR && e.lexeme == "(")
+			openParameter = true;
+
+		else if (e.token == TOKEN::SEPARATOR && e.lexeme == ")")
+			openParameter = false;
+
+		else if (e.id >= 0 && e.token == TOKEN::KEYWORD)
 		{
 			var v;
 			v.keyword = e.lexeme;
@@ -410,6 +429,11 @@ int semantic()
 				if (v.id == e.id)
 				{
 					v.identifier = e.lexeme;
+
+					// VARS INSIDE PARAMETERS ARE REQUIRED TO HAVE AN VALUE
+					if (openParameter)
+						v.valueRequired = true;
+
 					break;
 				}
 			}
@@ -430,6 +454,8 @@ int semantic()
 
 	/*
 	*	CHECKS IF VALUE ASSIGNED TO VAR IS VALID
+	* 
+	*	CHECKS IF VAR IS UNINITIALIZED
 	* 
 	*	CHECKS IF IDENTIFIER IS NOT DUPLICATED
 	*/
@@ -469,12 +495,23 @@ int semantic()
 				errors++;
 			}
 		}
+		else
+		{
+			if (varTable[i].valueRequired)
+			{
+				LOG_UNINITILIAZED_ERROR(varTable[i].identifier);
+				errors++;
+			}
+
+			else
+				LOG_UNINITILIAZED_WARN(varTable[i].identifier);
+		}
 
 		for (int k = i + 1; k < varTable.size(); k++)
 		{
 			if (varTable[i].identifier == varTable[k].identifier)
 			{ 
-				LOG_SEMANTICVAR_ERROR(varTable[i].identifier);
+				LOG_DUPLICATED_ERROR(varTable[i].identifier);
 				errors++;
 			}
 		}
@@ -563,6 +600,15 @@ void generateCode()
 			else
 				outFile << e.lexeme;
 		}
+		else if (e.token == TOKEN::OPERATOR)
+		{
+			// CHANGE OPERATOR + TO << WHEN OUTPUTTING MULTIPLE PARAMETERS
+			if (e.lexeme == "+" && outParameter)
+				outFile << "<<";
+
+			else
+				outFile << e.lexeme;
+		}
 		else
 			outFile << e.lexeme;
 		
@@ -593,7 +639,7 @@ void compiler(const std::string sourceCode)
 
 	if (errors == 0)
 	{
-		LOG("Compilação sucedida!");
+		LOG("\nCompilação sucedida!");
 		generateCode();
 	}
 	else

@@ -14,7 +14,9 @@
 #define LOG_INVALID_LITERAL(value) std::cout << "--> Valor atribuido invalido: " << value << std::endl
 #define LOG_SYNTACTIC_ERROR(state, lexeme) std::cout << "--> Erro Sintatico, Estado " << state << ": palavra nao identificada: " << lexeme << std::endl
 #define LOG_SEMANTIC_ERROR(keyword, value) std::cout << "--> Erro Semantico, " << keyword << " Invalido:  " << value << std::endl
-#define LOG_SEMANTICVAR_ERROR(value) std::cout << "--> Erro Semantico, Identificador duplicado: " << value << std::endl
+#define LOG_DUPLICATED_ERROR(value) std::cout << "--> Erro Semantico, Identificador duplicado: " << value << std::endl
+#define LOG_UNINITILIAZED_WARN(identifier) std::cout << "--> Aviso: variavel nao inicializada: " << identifier << std::endl
+#define LOG_UNINITILIAZED_ERROR(identifier) std::cout << "--> Erro Semantico, variavel nao inicializada: " << identifier << std::endl
 
 /*----------------------------------------------------------------------------------------------------------------------------*/
 
@@ -40,6 +42,7 @@ struct var
 	std::string keyword;
 	std::string identifier;
 	std::string value;
+	bool valueRequired = false;
 	int id;
 };
 
@@ -88,17 +91,6 @@ bool isValidIdentifier(const std::string& lexeme)
 {
 	std::regex re("^([a-zA-Z_$][a-zA-Z\\d_$]*)$");
 	return std::regex_match(lexeme, re);
-}
-
-bool isExistingLiteral(const std::vector<Element>& table, const std::string& lexeme)
-{
-	for (auto& e : table)
-	{
-		if (e.token == TOKEN::IDENTIFIER && e.lexeme == lexeme)
-			return true;
-	}
-
-	return false;
 }
 
 int getNextValidID(const std::vector<Element>& table)
