@@ -43,6 +43,7 @@ struct var
 	std::string identifier;
 	std::string value;
 	bool valueRequired = false;
+	bool pointsToAnother = false;
 	int id;
 };
 
@@ -93,6 +94,20 @@ bool isValidIdentifier(const std::string& lexeme)
 	return std::regex_match(lexeme, re);
 }
 
+bool isTypeKeyword(const std::string& lexeme)
+{
+	if (lexeme == "int" || lexeme == "Integer" ||
+		lexeme == "String" || lexeme == "char" ||
+		lexeme == "boolean" || lexeme == "Boolean" ||
+		lexeme == "float" || lexeme == "Float" ||
+		lexeme == "double" || lexeme == "Double")
+	{
+		return true;
+	}
+
+	return false;
+}
+
 int getNextValidID(const std::vector<Element>& table)
 {
 	int validID = -1;
@@ -116,4 +131,16 @@ int getID(const std::vector<Element>& table, const std::string& frag)
 	}
 
 	return id;
+}
+
+std::string getValue(const std::vector<Element>& table, int ID)
+{
+	std::string value;
+	for (auto& e : table)
+	{
+		if (e.token == TOKEN::LITERAL && e.id == ID)
+			value = e.lexeme;
+	}
+
+	return value;
 }

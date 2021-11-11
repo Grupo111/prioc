@@ -93,8 +93,13 @@ int lexical(const std::string& sourceCode)
 			{
 				if (!frag.empty())
 				{
+					int id = getID(table, frag);
+
 					if (!table.empty() && table.back().token == TOKEN::KEYWORD)
 						addToTable(frag, TOKEN::IDENTIFIER, currentID);
+
+					else if(id >= 0)
+						addToTable(frag, TOKEN::IDENTIFIER, id);
 
 					else
 						addToTable(frag, TOKEN::LITERAL, currentID);
@@ -179,7 +184,7 @@ int lexical(const std::string& sourceCode)
 				}
 
 				else
-					addToTable(frag, TOKEN::IDENTIFIER, currentID);
+					addToTable(frag, TOKEN::LITERAL, currentID);
 			}
 
 			frag = c;
@@ -203,21 +208,25 @@ int lexical(const std::string& sourceCode)
 			{
 				addToTable(frag, TOKEN::KEYWORD);
 			}
-			else if(!frag.empty()) // IDENTIFIER
+			else if(!frag.empty()) // IDENTIFIER OR LITERAL
 			{
 				int id = getID(table, frag);
 
 				if(id >= 0 && !table.empty() && table.back().token != TOKEN::KEYWORD)
 				{
 					addToTable(frag, TOKEN::IDENTIFIER, id);
-					currentID = id;
+					//currentID = id;
 				}
-				else if (!table.empty() && table.back().lexeme == "=")
+				else if (!table.empty() && table.back().token == TOKEN::OPERATOR)
 				{
 					addToTable(frag, TOKEN::LITERAL, currentID);
 				}
+				else if(!table.empty() && table.back().token != TOKEN::KEYWORD)
+					addToTable(frag, TOKEN::IDENTIFIER, id);
+				
 				else
 					addToTable(frag, TOKEN::IDENTIFIER, currentID);
+
 			}
 
 			frag = "";
@@ -372,7 +381,7 @@ int syntactic()
 					state = 4;
 				}
 			}
-			else if (e.token == TOKEN::OPERATOR && e.lexeme == "+")
+			else if (e.token == TOKEN::OPERATOR && (e.lexeme == "+" || e.lexeme == "-" || e.lexeme == "/" || e.lexeme == "*"))
 			{
 				state = 3;
 			}
@@ -403,54 +412,89 @@ int semantic()
 	*	 BUILD VAR TABLE
 	*/
 	
+	// TODO: PEGAR DECLARACOES MATEMATICAS
 	std::vector<var> varTable;
 	bool openParameter = false;
-	for (auto& e : table)
+	for (int i = 0; i < table.size(); i++)
 	{
-		if (e.token == TOKEN::SEPARATOR && e.lexeme == "(")
+		// VARS NOT INIT
+		if (table[i].token == TOKEN::KEYWORD && isTypeKeyword(table[i].lexeme) &&
+			!(table[i + 2].token == TOKEN::OPERATOR && table[i + 2].lexeme == "="))
+		{
+			var var;
+			var.id = table[i].id;
+			var.keyword = table[i].lexeme;
+			var.identifier = table[i + 1].lexeme;
+			
+			varTable.push_back(var);
+		}
+
+		// NORMAL VAR
+		if (table[i].token == TOKEN::OPERATOR && table[i].lexeme == "=")
+		{
+			int id = table[i - 1].id;
+			std::string identifier = table[i - 1].lexeme;
+			std::string keyword, value;
+			bool pointsToAnother = false;
+			
+			// VALUE
+			if (table[i + 1].token == TOKEN::LITERAL)
+			{
+				value = table[i + 1].lexeme;
+			}
+			else if (table[i + 1].token == TOKEN::IDENTIFIER)
+			{
+				pointsToAnother = true;
+				value = getValue(table, table[i + 1].id);
+			}
+
+			// TYPE
+			if (table[i - 2].token == TOKEN::KEYWORD && table[i - 2].id == id)
+			{
+				keyword = table[i - 2].lexeme;
+
+				var var;
+				var.id = table[i - 2].id;
+				var.identifier = identifier;
+				var.keyword = keyword;
+				var.pointsToAnother = pointsToAnother;
+				var.value = value;
+				
+				varTable.push_back(var);
+			}
+			else
+			{
+				for (auto& v : varTable)
+				{
+					if (v.id == table[i - 1].id)
+					{
+						v.value = value;
+						v.pointsToAnother = pointsToAnother;
+					}
+				}
+			}
+		}
+
+		// SET VAR VALUE REQUIRED
+		if (table[i].token == TOKEN::SEPARATOR && table[i].lexeme == "(" && !openParameter)
 			openParameter = true;
 
-		else if (e.token == TOKEN::SEPARATOR && e.lexeme == ")")
+		if (table[i].token == TOKEN::SEPARATOR && table[i].lexeme == ")" && openParameter)
 			openParameter = false;
 
-		else if (e.id >= 0 && e.token == TOKEN::KEYWORD)
-		{
-			var v;
-			v.keyword = e.lexeme;
-			v.id = e.id;
-
-			varTable.push_back(v);
-		}
-
-		else if (e.id >= 0 && e.token == TOKEN::IDENTIFIER)
+		if (table[i].token == TOKEN::IDENTIFIER && openParameter)
 		{
 			for (auto& v : varTable)
 			{
-				if (v.id == e.id)
+				if (v.identifier == table[i].lexeme)
 				{
-					v.identifier = e.lexeme;
-
-					// VARS INSIDE PARAMETERS ARE REQUIRED TO HAVE AN VALUE
-					if (openParameter)
-						v.valueRequired = true;
-
-					break;
+					v.valueRequired = true;
 				}
 			}
 		}
-
-		else if (e.id >= 0 && e.token == TOKEN::LITERAL)
-		{
-			for (auto& v : varTable)
-			{
-				if (v.id == e.id)
-				{
-					v.value = e.lexeme;
-					break;
-				}
-			}
-		}
+		
 	}
+
 
 	/*
 	*	CHECKS IF VALUE ASSIGNED TO VAR IS VALID
