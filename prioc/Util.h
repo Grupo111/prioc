@@ -44,6 +44,7 @@ struct var
 	std::string value;
 	bool valueRequired = false;
 	bool pointsToAnother = false;
+	bool userInput = false;
 	int id;
 };
 

@@ -74,7 +74,12 @@ int lexical(const std::string& sourceCode)
 		// SEPARATOR
 		if (c == '(' || c == ')' || c == ';' || c == '"' || c == '\'' || c == ',')
 		{
-			if ((c == '"' || c == '\'') && !openQuotes)
+			if (frag == "System.console" || frag == "System.console().readLine" ||
+				frag ==	"System.console(" || frag == "System.console().readLine(")
+			{
+				frag += c;
+			}
+			else if ((c == '"' || c == '\'') && !openQuotes)
 			{
 				openQuotes = true;
 				frag += c;
@@ -95,7 +100,10 @@ int lexical(const std::string& sourceCode)
 				{
 					int id = getID(table, frag);
 
-					if (!table.empty() && table.back().token == TOKEN::KEYWORD)
+					if (frag == "System.console().readLine()")
+						addToTable(frag, TOKEN::KEYWORD, currentID);
+
+					else if (!table.empty() && table.back().token == TOKEN::KEYWORD)
 						addToTable(frag, TOKEN::IDENTIFIER, currentID);
 
 					else if(id >= 0)
@@ -204,9 +212,9 @@ int lexical(const std::string& sourceCode)
 				addToTable(frag, TOKEN::KEYWORD, currentID);
 				lastKeyword = frag;
 			}
-			else if (frag == "System.out.println" || frag == "System.out.print")
+			else if (frag == "System.out.println" || frag == "System.out.print" || frag == "System.console().readLine()")
 			{
-				addToTable(frag, TOKEN::KEYWORD);
+				addToTable(frag, TOKEN::KEYWORD, currentID);
 			}
 			else if(!frag.empty()) // IDENTIFIER OR LITERAL
 			{
@@ -353,6 +361,10 @@ int syntactic()
 			{
 				state = 4;
 			}
+			else if (e.token == TOKEN::KEYWORD && e.lexeme == "System.console().readLine()")
+			{
+				state = 4;
+			}
 			else if (e.token == TOKEN::SEPARATOR && e.lexeme == ",")
 			{
 				state = 0;
@@ -436,6 +448,7 @@ int semantic()
 			std::string identifier = table[i - 1].lexeme;
 			std::string keyword, value;
 			bool pointsToAnother = false;
+			bool userInput = false;
 			
 			// VALUE
 			if (table[i + 1].token == TOKEN::LITERAL)
@@ -446,6 +459,10 @@ int semantic()
 			{
 				pointsToAnother = true;
 				value = getValue(table, table[i + 1].id);
+			}
+			else if (table[i + 1].token == TOKEN::KEYWORD && table[i + 1].lexeme == "System.console().readLine()")
+			{
+				userInput = true;
 			}
 
 			// TYPE
@@ -458,6 +475,7 @@ int semantic()
 				var.identifier = identifier;
 				var.keyword = keyword;
 				var.pointsToAnother = pointsToAnother;
+				var.userInput = userInput;
 				var.value = value;
 				
 				varTable.push_back(var);
@@ -469,6 +487,7 @@ int semantic()
 					if (v.id == table[i - 1].id)
 					{
 						v.value = value;
+						v.userInput = userInput;
 						v.pointsToAnother = pointsToAnother;
 					}
 				}
@@ -492,8 +511,8 @@ int semantic()
 				}
 			}
 		}
-		
 	}
+
 
 
 	/*
@@ -539,7 +558,7 @@ int semantic()
 				errors++;
 			}
 		}
-		else
+		else if(!varTable[i].userInput)
 		{
 			if (varTable[i].valueRequired)
 			{
@@ -573,68 +592,68 @@ void generateCode()
 	bool outParameter = false;
 	bool outEndLine = false;
 
-	for (auto& e : table)
+	for (int i = 0; i < table.size(); i++)
 	{
 		// SPACE
-		if (!newLine && e.token != TOKEN::SEPARATOR)	
+		if (!newLine && table[i].token != TOKEN::SEPARATOR)
 			outFile << " ";
 
-		if (e.token == TOKEN::SEPARATOR)
+		if (table[i].token == TOKEN::SEPARATOR)
 		{
 			// MULTIPLE DECLARATION (, ... = ...)
-			if (e.lexeme == ",")
+			if (table[i].lexeme == ",")
 			{
 				multipleDeclaration = true;
 				outFile << ",";
 			}
-				
-			else if (e.lexeme == "(" && outParameter)
+
+			else if (table[i].lexeme == "(" && outParameter)
 				outFile << " <<";
 
-			else if (e.lexeme == ")" && outParameter)
+			else if (table[i].lexeme == ")" && outParameter)
 			{
 				if (outEndLine)
 				{
 					outEndLine = false;
 					outFile << " << std::endl";
 				}
-				
+
 				outParameter = false;
 			}
 
-			else 
-				outFile << e.lexeme;
+			else
+				outFile << table[i].lexeme;
 		}
-		else if (e.token == TOKEN::KEYWORD)
+		else if (table[i].token == TOKEN::KEYWORD)
 		{
 			// NULL KEYWORD FOR SECOND DECLARATION
 			if (multipleDeclaration)
 				multipleDeclaration = false;
 
 			// C++ TYPES
-			else if (e.lexeme == "String")
+			else if (table[i].lexeme == "String")
 				outFile << "std::string";
 
-			else if (e.lexeme == "Integer")
+			else if (table[i].lexeme == "Integer")
 				outFile << "int";
 
-			else if (e.lexeme == "boolean" || e.lexeme == "Boolean")
+			else if (table[i].lexeme == "boolean" || table[i].lexeme == "Boolean")
 				outFile << "bool";
 
-			else if (e.lexeme == "Double")
+			else if (table[i].lexeme == "Double")
 				outFile << "double";
 
-			else if (e.lexeme == "Float")
+			else if (table[i].lexeme == "Float")
 				outFile << "float";
 
-			else if (e.lexeme == "System.out.println")
+			else if (table[i].lexeme == "System.out.println")
 			{
 				outFile << "std::cout";
 				outParameter = true;
 				outEndLine = true;
-			} 
+			}
 
-			else if (e.lexeme == "System.out.print")
+			else if (table[i].lexeme == "System.out.print")
 			{
 				outFile << "std::cout";
 				outParameter = true;
@@ -642,24 +661,49 @@ void generateCode()
 
 
 			else
-				outFile << e.lexeme;
+				outFile << table[i].lexeme;
 		}
-		else if (e.token == TOKEN::OPERATOR)
+		else if (table[i].token == TOKEN::OPERATOR)
 		{
 			// CHANGE OPERATOR + TO << WHEN OUTPUTTING MULTIPLE PARAMETERS
-			if (e.lexeme == "+" && outParameter)
+			if (table[i].lexeme == "+" && outParameter)
 				outFile << "<<";
 
 			else
-				outFile << e.lexeme;
+				outFile << table[i].lexeme;
+		}
+		else if (table[i].token == TOKEN::IDENTIFIER)
+		{
+			// INPUT 
+			if (table[i + 2].token == TOKEN::KEYWORD && table[i + 2].lexeme == "System.console().readLine()")
+			{
+				if (table[i - 1].token == TOKEN::KEYWORD && isTypeKeyword(table[i - 1].lexeme))
+				{
+					outFile << table[i].lexeme;
+					outFile << ";\n";
+					outFile << "std::cin >> ";
+					outFile << table[i].lexeme;
+					outFile << ";";
+					i = i + 3;
+				}
+				else
+				{
+					outFile << "std::cin >> ";
+					outFile << table[i].lexeme;
+					outFile << ";";
+					i = i + 3;
+				}
+			}
+			else
+				outFile << table[i].lexeme;
 		}
 		else
-			outFile << e.lexeme;
+			outFile << table[i].lexeme;
 		
 		newLine = false;
 
 		// LINE BREAK
-		if (e.lexeme == ";")
+		if (table[i].lexeme == ";")
 		{
 			outFile << "\n";
 			newLine = true;

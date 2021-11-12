@@ -1,3 +1,3 @@
-int x = 10;
-int z = 10;
-std::cout << x << z << std::endl;
+int meuNome;
+std::cin >> meuNome;
+std::cout << meuNome << std::endl;
