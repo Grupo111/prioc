@@ -478,6 +478,10 @@ int semantic()
 
 	/*
 	*	 BUILD VAR TABLE
+	* 
+	*	 CHECKS IF VALUE ASSIGNED TO VAR IS VALID
+	* 
+	*	 CHECKS IF VAR IS UNINITIALIZED
 	*/
 
 	// TODO: PEGAR DECLARACOES MATEMATICAS
@@ -535,6 +539,12 @@ int semantic()
 				var.value = value;
 
 				varTable.push_back(var);
+
+				if (!isValueAssignedValid(var))
+				{
+					errors++;
+					LOG_SEMANTIC_ERROR(var.keyword, var.value);
+				}
 			}
 			else
 			{
@@ -545,6 +555,12 @@ int semantic()
 						v.value = value;
 						v.userInput = userInput;
 						v.pointsToAnother = pointsToAnother;
+
+						if (!isValueAssignedValid(v))
+						{
+							errors++;
+							LOG_SEMANTIC_ERROR(v.keyword, v.value);
+						}
 					}
 				}
 			}
@@ -564,6 +580,12 @@ int semantic()
 				if (v.identifier == table[i].lexeme)
 				{
 					v.valueRequired = true;
+
+					if (v.value.empty())
+					{
+						LOG_UNINITILIAZED_ERROR(v.identifier);
+						errors++;
+					}
 				}
 			}
 		}
@@ -571,6 +593,7 @@ int semantic()
 
 	/*
 	*	 CHECKS IF ELSE IS ONLY USED AFTER IF
+	* 
 	*	 CHECKS IF INDENTIFIER IS DECLARED INDENTIFIER
 	*/
 	bool usedIf = false;
@@ -599,57 +622,18 @@ int semantic()
 
 
 	/*
-	*	CHECKS IF VALUE ASSIGNED TO VAR IS VALID
-	*
 	*	CHECKS IF VAR IS UNINITIALIZED
 	*
 	*	CHECKS IF IDENTIFIER IS NOT DUPLICATED
 	*/
 	for (int i = 0; i < varTable.size(); i++)
 	{
-		if (!varTable[i].value.empty())
+		if (varTable[i].value.empty() && !varTable[i].userInput)
 		{
-			if ((varTable[i].keyword == "String") && !isValidString(varTable[i].value))
+			if (!varTable[i].valueRequired)
 			{
-				LOG_SEMANTIC_ERROR("String", varTable[i].value);
-				errors++;
-			}
-			else if (((varTable[i].keyword == "boolean") || (varTable[i].keyword == "Boolean")) && !isValidBool(varTable[i].value))
-			{
-				LOG_SEMANTIC_ERROR("boolean", varTable[i].value);
-				errors++;
-			}
-			else if ((varTable[i].keyword == "char") && !isValidChar(varTable[i].value))
-			{
-				LOG_SEMANTIC_ERROR("char", varTable[i].value);
-				errors++;
-			}
-			else if (((varTable[i].keyword == "int") || (varTable[i].keyword == "Integer")) && !isValidInt(varTable[i].value))
-			{
-				LOG_SEMANTIC_ERROR("int", varTable[i].value);
-				errors++;
-			}
-			else if (((varTable[i].keyword == "double") || (varTable[i].keyword == "Double")) && !isValidNumber(varTable[i].value))
-			{
-				LOG_SEMANTIC_ERROR("double", varTable[i].value);
-				errors++;
-			}
-			else if (((varTable[i].keyword == "float") || (varTable[i].keyword == "Float")) && !isValidNumber(varTable[i].value))
-			{
-				LOG_SEMANTIC_ERROR("float", varTable[i].value);
-				errors++;
-			}
-		}
-		else if (!varTable[i].userInput)
-		{
-			if (varTable[i].valueRequired)
-			{
-				LOG_UNINITILIAZED_ERROR(varTable[i].identifier);
-				errors++;
-			}
-
-			else
 				LOG_UNINITILIAZED_WARN(varTable[i].identifier);
+			}
 		}
 
 		for (int k = i + 1; k < varTable.size(); k++)
@@ -770,7 +754,7 @@ void generateCode()
 		else if (table[i].token == TOKEN::IDENTIFIER)
 		{
 			// INPUT 
-			if (table[i + 2].token == TOKEN::KEYWORD && table[i + 2].lexeme == "System.console().readLine()")
+			if (i + 2 < table.size() && table[i + 2].token == TOKEN::KEYWORD && table[i + 2].lexeme == "System.console().readLine()")
 			{
 				if (table[i - 1].token == TOKEN::KEYWORD && isTypeKeyword(table[i - 1].lexeme))
 				{

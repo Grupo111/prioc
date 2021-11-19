@@ -152,3 +152,33 @@ std::string getValue(const std::vector<Element>& table, int ID)
 
 	return value;
 }
+
+bool isValueAssignedValid(var v)
+{
+	if ((v.keyword == "String") && !isValidString(v.value))
+	{
+		return false;
+	}
+	else if (((v.keyword == "boolean") || (v.keyword == "Boolean")) && !isValidBool(v.value))
+	{
+		return false;
+	}
+	else if ((v.keyword == "char") && !isValidChar(v.value))
+	{
+		return false;
+	}
+	else if (((v.keyword == "int") || (v.keyword == "Integer")) && !isValidInt(v.value))
+	{
+		return false;
+	}
+	else if (((v.keyword == "double") || (v.keyword == "Double")) && !isValidNumber(v.value))
+	{
+		return false;
+	}
+	else if (((v.keyword == "float") || (v.keyword == "Float")) && !isValidNumber(v.value))
+	{
+		return false;
+	}
+	
+	return true;
+}

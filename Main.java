@@ -1,11 +1,7 @@
-boolean input = true;
-int meuInt;
+int x;
+x = 10;
+System.out.println(x);
 
-if(input == true)
-{
-meuInt = System.console().readLine();
-}
-else
-{
-meuInt = 20;
-}
+int z;
+System.out.println(z);
+z = 20;
