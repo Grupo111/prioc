@@ -10,13 +10,20 @@
 //MACRO PRINTS
 #define LOG(x) std::cout << x << std::endl
 #define LOG_WRONGPATH_ERROR(path) std::cout << "Falha ao abrir arquivo " << path << std::endl
+
 #define LOG_INVALID_INDENTIFIER(identifier) std::cout << "--> Indenticador invalido: " << identifier << std::endl
-#define LOG_INVALID_LITERAL(value) std::cout << "--> Valor atribuido invalido: " << value << std::endl
-#define LOG_SYNTACTIC_ERROR(state, lexeme) std::cout << "--> Erro Sintatico, Estado " << state << ": palavra nao identificada: " << lexeme << std::endl
-#define LOG_SEMANTIC_ERROR(keyword, value) std::cout << "--> Erro Semantico, " << keyword << " Invalido:  " << value << std::endl
-#define LOG_DUPLICATED_ERROR(value) std::cout << "--> Erro Semantico, Identificador duplicado: " << value << std::endl
+#define LOG_INVALID_LITERAL(value) std::cout << "--> Valor invalido: " << value << std::endl
+
+#define LOG_SYNTACTIC_ERROR(state, lexeme) std::cout << "--> Erro Sintatico, Estado: " << state << " em: " << lexeme << std::endl
+#define LOG_NOTCLOSED_BRACKET(state) std::cout << "--> Erro: " << state << ": \"}\" Experado" << std::endl
+#define LOG_NOTCLOSED_PAREN(state) std::cout << "--> Erro: " << state << ": \")\" Experado" << std::endl
+
+#define LOG_SEMANTIC_ERROR(keyword, value) std::cout << "--> Erro: " << keyword << " Invalido:  " << value << std::endl
+#define LOG_DUPLICATED_ERROR(value) std::cout << "--> Erro: Identificador duplicado: " << value << std::endl
+#define LOG_IDENTIFIERNOTFOUND_ERROR(identifier) std::cout << "--> Erro: Identificador " << identifier << " nao encontrado" << std::endl;
+#define LOG_WRONGELSEUSAGE_ERROR() LOG("--> Erro: else utilizado sem if");
 #define LOG_UNINITILIAZED_WARN(identifier) std::cout << "--> Aviso: variavel nao inicializada: " << identifier << std::endl
-#define LOG_UNINITILIAZED_ERROR(identifier) std::cout << "--> Erro Semantico, variavel nao inicializada: " << identifier << std::endl
+#define LOG_UNINITILIAZED_ERROR(identifier) std::cout << "--> Erro: variavel nao inicializada " << identifier << " dentro de parametros" << std::endl
 
 /*----------------------------------------------------------------------------------------------------------------------------*/
 
