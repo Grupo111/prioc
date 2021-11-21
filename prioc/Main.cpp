@@ -141,7 +141,7 @@ int lexical(const std::string& sourceCode)
 				openParameter = true;
 
 				// KEYWORD
-				if (frag == "System.out.println" || frag == "System.out.print" || frag == "if")
+				if (frag == "System.out.println" || frag == "System.out.print" || frag == "if" || frag == "while")
 				{
 					addToTable(frag, TOKEN::KEYWORD);
 					frag = "";
@@ -204,22 +204,23 @@ int lexical(const std::string& sourceCode)
 					currentID = id;
 				}
 
-				else if (table.back().lexeme == "=")
+				else if ((table.back().token == TOKEN::OPERATOR || table.back().token == TOKEN::SEPARATOR) && isValidLiteral(frag))
 					addToTable(frag, TOKEN::LITERAL, currentID);
 
 				else
 					addToTable(frag, TOKEN::IDENTIFIER);
 			}
 
-			// ==  <= >=
-			if (sourceCode[i + 1] == '=')
+			// ==  <= >= ++ --
+			if (sourceCode[i + 1] == '=' || (sourceCode[i + 1] == '+' && sourceCode[i] == '+') || 
+											(sourceCode[i + 1] == '-' && sourceCode[i] == '-'))
 			{
 				frag = sourceCode[i];
 				frag += sourceCode[i + 1];
 				addToTable(frag, TOKEN::OPERATOR);
 				frag = "";
 
-				i += 2;
+				i += 1;
 			}
 			else
 			{
@@ -245,7 +246,7 @@ int lexical(const std::string& sourceCode)
 			{
 				addToTable(frag, TOKEN::KEYWORD, currentID);
 			}
-			else if (frag == "if" || frag == "else")
+			else if (frag == "if" || frag == "else" || frag == "while")
 			{
 				addToTable(frag, TOKEN::KEYWORD);
 			}
@@ -370,7 +371,11 @@ int syntactic()
 		{
 			if (e.token == TOKEN::OPERATOR)
 			{
-				state = 3;
+				if (e.lexeme == "++" || e.lexeme == "--")
+					state = 4;
+
+				else
+					state = 3;
 			}
 			else if (e.token == TOKEN::SEPARATOR)
 			{
@@ -519,6 +524,12 @@ int semantic()
 			{
 				pointsToAnother = true;
 				value = getValue(table, table[i + 1].id);
+
+				if (value.empty())
+				{
+					errors++;
+					LOG_UNINITILIAZEDATTRIB_ERROR(table[i + 1].lexeme, identifier);
+				}
 			}
 			else if (table[i + 1].token == TOKEN::KEYWORD && table[i + 1].lexeme == "System.console().readLine()")
 			{
@@ -658,12 +669,15 @@ void generateCode()
 	bool multipleDeclaration = false;
 	bool outParameter = false;
 	bool outEndLine = false;
+	bool increment = false;
 
 	for (int i = 0; i < table.size(); i++)
 	{
 		// SPACE
-		if (!newLine && table[i].token != TOKEN::SEPARATOR && table[i - 1].lexeme != "(")
+		if (!newLine && !increment && table[i].token != TOKEN::SEPARATOR && table[i - 1].lexeme != "(")
 			outFile << " ";
+
+		increment = false;
 
 		if (table[i].token == TOKEN::SEPARATOR)
 		{
@@ -692,7 +706,6 @@ void generateCode()
 			{
 				outFile << "\n";
 				outFile << table[i].lexeme;
-				outFile << "\n";
 			}
 
 			else if (table[i].lexeme == "}")
@@ -773,6 +786,11 @@ void generateCode()
 					i = i + 3;
 				}
 			}
+			else if (i + 1 < table.size() && (table[i + 1].lexeme == "++" || table[i + 1].lexeme == "--"))
+			{
+				outFile << table[i].lexeme;
+				increment = true;
+			}
 			else
 				outFile << table[i].lexeme;
 		}
@@ -782,7 +800,7 @@ void generateCode()
 		newLine = false;
 
 		// LINE BREAK
-		if (table[i].lexeme == ";" || table[i].lexeme == "}")
+		if (table[i].lexeme == ";" || table[i].lexeme == "}" || table[i].lexeme == "{")
 		{
 			outFile << "\n";
 			newLine = true;

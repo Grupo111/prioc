@@ -23,7 +23,8 @@
 #define LOG_IDENTIFIERNOTFOUND_ERROR(identifier) std::cout << "--> Erro: Identificador " << identifier << " nao encontrado" << std::endl;
 #define LOG_WRONGELSEUSAGE_ERROR() LOG("--> Erro: else utilizado sem if");
 #define LOG_UNINITILIAZED_WARN(identifier) std::cout << "--> Aviso: variavel nao inicializada: " << identifier << std::endl
-#define LOG_UNINITILIAZED_ERROR(identifier) std::cout << "--> Erro: variavel nao inicializada " << identifier << " dentro de parametros" << std::endl
+#define LOG_UNINITILIAZED_ERROR(identifier) std::cout << "--> Erro: variavel nao inicializada: " << identifier << " dentro de parametros" << std::endl
+#define LOG_UNINITILIAZEDATTRIB_ERROR(identifier, indentifier2) std::cout << "--> Erro: variavel nao inicializada: " << identifier << " atribuida a: " << indentifier2 << std::endl
 
 /*----------------------------------------------------------------------------------------------------------------------------*/
 

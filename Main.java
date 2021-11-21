@@ -1,7 +1,9 @@
-int x;
-x = 10;
-System.out.println(x);
+int i = 10;
+int z = 0;
 
-int z;
-System.out.println(z);
-z = 20;
+while (i >= z)
+{
+    System.out.println(i);
+    i--;
+    int x = 20;
+}
