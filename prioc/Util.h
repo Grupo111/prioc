@@ -25,6 +25,9 @@
 #define LOG_UNINITILIAZED_WARN(identifier) std::cout << "--> Aviso: variavel nao inicializada: " << identifier << std::endl
 #define LOG_UNINITILIAZED_ERROR(identifier) std::cout << "--> Erro: variavel nao inicializada: " << identifier << " dentro de parametros" << std::endl
 #define LOG_UNINITILIAZEDATTRIB_ERROR(identifier, indentifier2) std::cout << "--> Erro: variavel nao inicializada: " << identifier << " atribuida a: " << indentifier2 << std::endl
+#define LOG_BADOPERAND_ERROR(operand, type1, type2) std::cout << "--> Erro: tipos incompativeis com operador " << operand << " : " << type1 << " e " << type2 << std::endl
+#define LOG_INCOMPATIBLETYPE_ERROR(lexeme1, type1, lexeme2, type2) std::cout << "--> Erro: tipos incompativeis: " << lexeme1 << " (" << type1 << ") e " << lexeme2 << " (" << type2 << ")" << std::endl;
+
 
 /*----------------------------------------------------------------------------------------------------------------------------*/
 
@@ -35,7 +38,6 @@ enum class TOKEN
 	SEPARATOR,		// punctuation characters and paired-delimiters (}, (, ;)
 	OPERATOR,		// symbols that operate on arguments and produce results (+, <, =)
 	LITERAL,		// numeric, logical, textual, reference literals (true, 6.02e23, "music")
-	COMMENT,		// line, block (/* Retrieves user data */)
 };
 
 struct Element
@@ -152,6 +154,35 @@ std::string getValue(const std::vector<Element>& table, int ID)
 	}
 
 	return value;
+}
+
+std::string getType(const std::vector<Element>& table, int ID)
+{
+	std::string type;
+	for (auto& e : table)
+	{
+		if (e.token == TOKEN::KEYWORD && e.id == ID && isTypeKeyword(e.lexeme))
+			type = e.lexeme;
+	}
+	
+	return type;
+}
+
+std::string getLiteralType(const std::string& literal)
+{
+	if (isValidString(literal))
+		return "String";
+	else if (isValidBool(literal))
+		return "bool";
+	else if (isValidChar(literal))
+		return "char";
+	else if (isValidInt(literal))
+		return "int";
+	else if (isValidNumber(literal))
+		return "double | float";
+
+	return "desconhecido";
+	
 }
 
 bool isValueAssignedValid(var v)

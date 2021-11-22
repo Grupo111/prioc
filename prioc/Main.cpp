@@ -1,7 +1,5 @@
 /*
 * PRIOC
-* VINÍCIUS REIS
-*
 */
 
 
@@ -45,9 +43,6 @@ void printTable()
 			break;
 		case TOKEN::LITERAL:
 			token = "Literal";
-			break;
-		case TOKEN::COMMENT:
-			token = "Comment";
 			break;
 		}
 
@@ -109,8 +104,15 @@ int lexical(const std::string& sourceCode)
 					else if (id >= 0)
 						addToTable(frag, TOKEN::IDENTIFIER, id);
 
-					else
+					else if (table.back().lexeme == "=")
 						addToTable(frag, TOKEN::LITERAL, currentID);
+
+					else if (isValidLiteral(frag))
+						addToTable(frag, TOKEN::LITERAL);
+
+					else
+						addToTable(frag, TOKEN::IDENTIFIER, id);
+
 				}
 
 				frag = "";
@@ -191,24 +193,27 @@ int lexical(const std::string& sourceCode)
 			}
 		}
 		// OPERATOR
-		else if (sourceCode[i] == '=' || sourceCode[i] == '+' || sourceCode[i] == '-' || sourceCode[i] == '*' ||
-			sourceCode[i] == '/' || sourceCode[i] == '>' || sourceCode[i] == '<' || sourceCode[i] == '!')
+		else if ((sourceCode[i] == '=' || sourceCode[i] == '+' || sourceCode[i] == '-' || sourceCode[i] == '*' ||
+			sourceCode[i] == '/' || sourceCode[i] == '>' || sourceCode[i] == '<' || sourceCode[i] == '!') && !openQuotes)
 		{
 			if (!frag.empty())
 			{
 				int id = getID(table, frag);
 
-				if (id >= 0 && !table.empty() && table.back().token != TOKEN::KEYWORD)
-				{
-					addToTable(frag, TOKEN::IDENTIFIER, id);
-					currentID = id;
-				}
+				if (!table.empty() && table.back().token == TOKEN::KEYWORD)
+					addToTable(frag, TOKEN::IDENTIFIER, currentID);
 
-				else if ((table.back().token == TOKEN::OPERATOR || table.back().token == TOKEN::SEPARATOR) && isValidLiteral(frag))
+				else if (id >= 0)
+					addToTable(frag, TOKEN::IDENTIFIER, id);
+
+				else if (table.back().lexeme == "=")
 					addToTable(frag, TOKEN::LITERAL, currentID);
 
+				else if (isValidLiteral(frag))
+					addToTable(frag, TOKEN::LITERAL);
+
 				else
-					addToTable(frag, TOKEN::IDENTIFIER);
+					addToTable(frag, TOKEN::IDENTIFIER, id);
 			}
 
 			// ==  <= >= ++ --
@@ -254,20 +259,20 @@ int lexical(const std::string& sourceCode)
 			{
 				int id = getID(table, frag);
 
-				if (id >= 0 && !table.empty() && table.back().token != TOKEN::KEYWORD)
-				{
-					addToTable(frag, TOKEN::IDENTIFIER, id);
-					//currentID = id;
-				}
-				else if (!table.empty() && table.back().token == TOKEN::OPERATOR && table.back().lexeme == "=")
-				{
-					addToTable(frag, TOKEN::LITERAL, currentID);
-				}
-				else if (!table.empty() && table.back().token != TOKEN::KEYWORD)
+				if (!table.empty() && table.back().token == TOKEN::KEYWORD)
+					addToTable(frag, TOKEN::IDENTIFIER, currentID);
+
+				else if (id >= 0)
 					addToTable(frag, TOKEN::IDENTIFIER, id);
 
+				else if (table.back().lexeme == "=")
+					addToTable(frag, TOKEN::LITERAL, currentID);
+
+				else if (isValidLiteral(frag))
+					addToTable(frag, TOKEN::LITERAL);
+
 				else
-					addToTable(frag, TOKEN::IDENTIFIER, currentID);
+					addToTable(frag, TOKEN::IDENTIFIER, id);
 
 			}
 
@@ -294,7 +299,7 @@ int lexical(const std::string& sourceCode)
 
 
 	/*
-	*	CHECK IF IDENTIFIERS AND LITERALS ARE VALID BASED ON REGEX FUNCTIONS
+	*	CHECA SE LITERALS E IDENTIFIERS SÃO VALIDOS
 	*/
 
 	for (auto& e : table)
@@ -408,6 +413,10 @@ int syntactic()
 			{
 				state = 4;
 			}
+			else if (e.token == TOKEN::OPERATOR && e.lexeme == "!")
+			{
+				state = 3;
+			}
 			else if (e.token == TOKEN::SEPARATOR && e.lexeme == ",")
 			{
 				state = 0;
@@ -454,7 +463,7 @@ int syntactic()
 	}
 
 	/*
-	*	 CHECKS IF STATE IS DIFFERENT FROM 10 (ok)
+	*	 CHECA SE ESTADO É DIFERENTE DO ESTADO OK (10)
 	*/
 
 	if (state != 10)
@@ -482,19 +491,17 @@ int semantic()
 	int errors = 0;
 
 	/*
-	*	 BUILD VAR TABLE
+	*    CONSTROI TABELA DE VAR
 	* 
-	*	 CHECKS IF VALUE ASSIGNED TO VAR IS VALID
+	*	 CHECA SE VALOR ATRIBUIDO A VAR É VALIDO
 	* 
-	*	 CHECKS IF VAR IS UNINITIALIZED
+	*	 CHECA SE VAR FOI INICIALIZADA
 	*/
-
-	// TODO: PEGAR DECLARACOES MATEMATICAS
 	std::vector<var> varTable;
 	bool openParameter = false;
 	for (int i = 0; i < table.size(); i++)
 	{
-		// VARS NOT INIT
+		// VARS NÃO INICIALIZADAS
 		if (table[i].token == TOKEN::KEYWORD && isTypeKeyword(table[i].lexeme) &&
 			!(table[i + 2].token == TOKEN::OPERATOR && table[i + 2].lexeme == "="))
 		{
@@ -506,78 +513,110 @@ int semantic()
 			varTable.push_back(var);
 		}
 
-		// NORMAL VAR
-		if (table[i].token == TOKEN::OPERATOR && table[i].lexeme == "=")
+		//  VARS NORMAL
+		if (table[i].token == TOKEN::OPERATOR)
 		{
-			int id = table[i - 1].id;
-			std::string identifier = table[i - 1].lexeme;
-			std::string keyword, value;
-			bool pointsToAnother = false;
-			bool userInput = false;
-
-			// VALUE
-			if (table[i + 1].token == TOKEN::LITERAL)
+			if (table[i].lexeme == "=")
 			{
-				value = table[i + 1].lexeme;
-			}
-			else if (table[i + 1].token == TOKEN::IDENTIFIER)
-			{
-				pointsToAnother = true;
-				value = getValue(table, table[i + 1].id);
+				int id = table[i - 1].id;
+				std::string identifier = table[i - 1].lexeme;
+				std::string keyword, value;
+				bool pointsToAnother = false;
+				bool userInput = false;
 
-				if (value.empty())
+				// VALOR
+				if (table[i + 1].token == TOKEN::LITERAL)
 				{
-					errors++;
-					LOG_UNINITILIAZEDATTRIB_ERROR(table[i + 1].lexeme, identifier);
+					value = table[i + 1].lexeme;
 				}
-			}
-			else if (table[i + 1].token == TOKEN::KEYWORD && table[i + 1].lexeme == "System.console().readLine()")
-			{
-				userInput = true;
-			}
-
-			// TYPE
-			if (table[i - 2].token == TOKEN::KEYWORD && table[i - 2].id == id)
-			{
-				keyword = table[i - 2].lexeme;
-
-				var var;
-				var.id = table[i - 2].id;
-				var.identifier = identifier;
-				var.keyword = keyword;
-				var.pointsToAnother = pointsToAnother;
-				var.userInput = userInput;
-				var.value = value;
-
-				varTable.push_back(var);
-
-				if (!isValueAssignedValid(var))
+				else if (table[i + 1].token == TOKEN::IDENTIFIER)
 				{
-					errors++;
-					LOG_SEMANTIC_ERROR(var.keyword, var.value);
-				}
-			}
-			else
-			{
-				for (auto& v : varTable)
-				{
-					if (v.id == table[i - 1].id)
+					pointsToAnother = true;
+					value = getValue(table, table[i + 1].id);
+
+					if (value.empty())
 					{
-						v.value = value;
-						v.userInput = userInput;
-						v.pointsToAnother = pointsToAnother;
+						errors++;
+						LOG_UNINITILIAZEDATTRIB_ERROR(table[i + 1].lexeme, identifier);
+					}
+				}
+				else if (table[i + 1].token == TOKEN::KEYWORD && table[i + 1].lexeme == "System.console().readLine()")
+				{
+					userInput = true;
+				}
 
-						if (!isValueAssignedValid(v))
+				// TIPO
+				if (table[i - 2].token == TOKEN::KEYWORD && table[i - 2].id == id)
+				{
+					keyword = table[i - 2].lexeme;
+
+					var var;
+					var.id = table[i - 2].id;
+					var.identifier = identifier;
+					var.keyword = keyword;
+					var.pointsToAnother = pointsToAnother;
+					var.userInput = userInput;
+					var.value = value;
+
+					varTable.push_back(var);
+
+					if (!isValueAssignedValid(var))
+					{
+						errors++;
+						LOG_SEMANTIC_ERROR(var.keyword, var.value);
+					}
+				}
+				else
+				{
+					for (auto& v : varTable)
+					{
+						if (v.id == table[i - 1].id)
 						{
-							errors++;
-							LOG_SEMANTIC_ERROR(v.keyword, v.value);
+							v.value = value;
+							v.userInput = userInput;
+							v.pointsToAnother = pointsToAnother;
+
+							if (!isValueAssignedValid(v))
+							{
+								errors++;
+								LOG_SEMANTIC_ERROR(v.keyword, v.value);
+							}
 						}
 					}
 				}
 			}
+			else if (table[i].lexeme == "+" || table[i].lexeme == "-" || table[i].lexeme == ">" || table[i].lexeme == ">=" ||
+					 table[i].lexeme == "/" || table[i].lexeme == "*" || table[i].lexeme == "<" || table[i].lexeme == "<=" ||
+				     table[i].lexeme == "==")
+			{
+				std::string type, type2;
+
+				if (table[i - 1].token == TOKEN::IDENTIFIER)
+					type = getType(table, table[i - 1].id);
+				else if (table[i - 1].token == TOKEN::LITERAL)
+					type = getLiteralType(table[i - 1].lexeme);
+				
+				if (table[i + 1].token == TOKEN::IDENTIFIER)
+					type2 = getType(table, table[i + 1].id);
+				else if (table[i + 1].token == TOKEN::LITERAL)
+					type2 = getLiteralType(table[i + 1].lexeme);
+				
+
+				if ((table[i].lexeme == "-" || table[i].lexeme == ">" || table[i].lexeme == ">=" || table[i].lexeme == "/" ||
+					table[i].lexeme == "*" || table[i].lexeme == "<" || table[i].lexeme == "<=") && (type == "String" || type2 == "String"))
+				{
+					errors++;
+					LOG_BADOPERAND_ERROR(table[i].lexeme, type, type2);
+				}
+				else if (type != type2)
+				{
+					errors++;
+					LOG_INCOMPATIBLETYPE_ERROR(table[i - 1].lexeme, type, table[i + 1].lexeme, type2);
+				}
+			}
 		}
 
-		// SET VAR VALUE REQUIRED
+		// COLOCA VALOR DA VAR COMO REQUERIDO
 		if (table[i].token == TOKEN::SEPARATOR && table[i].lexeme == "(" && !openParameter)
 			openParameter = true;
 
@@ -603,9 +642,9 @@ int semantic()
 	}
 
 	/*
-	*	 CHECKS IF ELSE IS ONLY USED AFTER IF
+	*	 CHECA SE ELSE É UTILIZADO APENAS APOS IF
 	* 
-	*	 CHECKS IF INDENTIFIER IS DECLARED INDENTIFIER
+	*	 CHECA SE IDENTFIER FOI DECLARADO
 	*/
 	bool usedIf = false;
 	for (auto& e : table)
@@ -633,9 +672,9 @@ int semantic()
 
 
 	/*
-	*	CHECKS IF VAR IS UNINITIALIZED
+	*	CHECA SE VAR FOI INICIALIZADA
 	*
-	*	CHECKS IF IDENTIFIER IS NOT DUPLICATED
+	*	CHECA SE IDENTIFIER FOI DUPLICADO
 	*/
 	for (int i = 0; i < varTable.size(); i++)
 	{
@@ -681,7 +720,7 @@ void generateCode()
 
 		if (table[i].token == TOKEN::SEPARATOR)
 		{
-			// MULTIPLE DECLARATION (, ... = ...)
+			// DECLARAÇÃO MULTIPLA (, ... = ...)
 			if (table[i].lexeme == ",")
 			{
 				multipleDeclaration = true;
@@ -719,11 +758,11 @@ void generateCode()
 		}
 		else if (table[i].token == TOKEN::KEYWORD)
 		{
-			// NULL KEYWORD FOR SECOND DECLARATION
+			// NUL KEYWORD PARA DECLARAÇÃO MULTIPLA
 			if (multipleDeclaration)
 				multipleDeclaration = false;
 
-			// C++ TYPES
+			// C++ TIPOS
 			else if (table[i].lexeme == "String")
 				outFile << "std::string";
 
@@ -757,7 +796,7 @@ void generateCode()
 		}
 		else if (table[i].token == TOKEN::OPERATOR)
 		{
-			// CHANGE OPERATOR + TO << WHEN OUTPUTTING MULTIPLE PARAMETERS
+			// MUDA OPERATOR + PARA << QUANDO SAIDA DE MULTIPLO PARAMETROS
 			if (table[i].lexeme == "+" && outParameter)
 				outFile << "<<";
 
